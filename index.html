@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="GeoWeather Dashboard - Track real-time weather based on your location">
+    <meta name="theme-color" content="#2c3e50">
+    <title>GeoWeather Dashboard | Live Location Weather</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/leaflet-overrides.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <i class="fas fa-location-dot"></i>
+                <h1>GeoWeather Dashboard</h1>
+            </div>
+            <div class="controls">
+                <div class="search-container">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" placeholder="Search city or location..." class="search-input" aria-label="Search for a location">
+                </div>
+                <button id="refreshBtn" class="btn btn-primary" aria-label="Refresh weather data">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+                <button id="locateBtn" class="btn btn-secondary" aria-label="Get my current location">
+                    <i class="fas fa-location-crosshairs"></i> Locate Me
+                </button>
+            </div>
+        </header>
+        
+        <main class="dashboard">
+            <!-- Location Card -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <h2>Your Location</h2>
+                </div>
+                
+                <div id="locationInfo" class="location-info">
+                    <div class="location-item">
+                        <i class="fas fa-city"></i>
+                        <span id="city">Locating...</span>
+                    </div>
+                    <div class="location-item">
+                        <i class="fas fa-globe-americas"></i>
+                        <span id="country">Please enable location access</span>
+                    </div>
+                    
+                    <div class="coordinates">
+                        <div class="coordinate">
+                            <i class="fas fa-arrows-alt-v"></i> 
+                            <span id="latitude">0.0000</span>°
+                        </div>
+                        <div class="coordinate">
+                            <i class="fas fa-arrows-alt-h"></i> 
+                            <span id="longitude">0.0000</span>°
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="accuracyDisplay" class="accuracy-display">
+                    <p><i class="fas fa-bullseye"></i> Location accuracy: <span id="accuracyValue">Unknown</span> meters</p>
+                </div>
+                
+                <div id="permissionPrompt" class="permission-prompt">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <h3>Location Access Required</h3>
+                    <p>Please allow location access in your browser to use this feature.</p>
+                </div>
+            </div>
+            
+            <!-- Weather Card -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-cloud-sun"></i>
+                    <h2>Current Weather</h2>
+                </div>
+                
+                <div class="loading" id="weatherLoading">
+                    <i class="fas fa-spinner"></i>
+                    <p>Loading weather data...</p>
+                </div>
+                
+                <div id="weatherDisplay" style="display: none;">
+                    <div class="weather-main">
+                        <div class="temp-display">
+                            <span id="temperature">22</span>°C
+                        </div>
+                        <div class="weather-condition">
+                            <i id="weatherConditionIcon" class="fas fa-cloud-sun"></i>
+                            <span id="weatherConditionText">Partly Cloudy</span>
+                        </div>
+                    </div>
+                    
+                    <div class="weather-details">
+                        <div class="detail-card">
+                            <i class="fas fa-wind"></i>
+                            <div class="label">Wind Speed</div>
+                            <div class="value"><span id="windSpeed">5.2</span> km/h</div>
+                        </div>
+                        <div class="detail-card">
+                            <i class="fas fa-tint"></i>
+                            <div class="label">Humidity</div>
+                            <div class="value"><span id="humidity">65</span>%</div>
+                        </div>
+                        <div class="detail-card">
+                            <i class="fas fa-sun"></i>
+                            <div class="label">UV Index</div>
+                            <div class="value"><span id="uvIndex">3</span></div>
+                        </div>
+                        <div class="detail-card">
+                            <i class="fas fa-compress-alt"></i>
+                            <div class="label">Pressure</div>
+                            <div class="value"><span id="pressure">1013</span> hPa</div>
+                        </div>
+                    </div>
+                    
+                    <div class="forecast-preview" id="forecastPreview">
+                        <h3>5-Day Forecast</h3>
+                        <!-- Forecast items will be added dynamically -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Map Card -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-map"></i>
+                    <h2>Location Map</h2>
+                    <div class="map-type-selector">
+                        <select id="mapTypeSelector" class="map-type-select" aria-label="Select map type">
+                            <option value="standard">Standard View</option>
+                            <option value="satellite">Satellite View</option>
+                            <option value="terrain">Terrain View</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="map-container">
+                    <div id="map"></div>
+                    
+                    <div class="map-controls">
+                        <button id="zoomInBtn" class="map-btn" title="Zoom In" aria-label="Zoom in map">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <button id="zoomOutBtn" class="map-btn" title="Zoom Out" aria-label="Zoom out map">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <button id="resetViewBtn" class="map-btn" title="Reset View" aria-label="Reset map view">
+                            <i class="fas fa-globe"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="status" id="geoStatus">
+                    <i class="fas fa-satellite"></i>
+                    <div class="status-text">
+                        <h3>Geolocation Status</h3>
+                        <p id="statusText">Initializing geolocation service...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <footer>
+            <p>GeoWeather Dashboard &copy; <span id="currentYear">2024</span> | Uses HTML5 Geolocation API and Leaflet.js</p>
+            <p>Accuracy indicators: High (&lt;50m), Medium (50-200m), Low (&gt;200m)</p>
+        </footer>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+    <!-- Custom JS -->
+    <script src="js/map.js" defer></script>
+    <script src="js/geolocation.js" defer></script>
+    <script src="js/weather.js" defer></script>
+    <script src="js/app.js" defer></script>
+    
+    <!-- Update copyright year -->
+    <script>
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+    </script>
+</body>
+</html>

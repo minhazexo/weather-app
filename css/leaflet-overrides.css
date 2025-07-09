@@ -1,0 +1,15 @@
+.leaflet-control-attribution {
+    background: rgba(0, 0, 0, 0.7) !important;
+    color: #ccc !important;
+}
+
+.leaflet-popup-content-wrapper {
+    background: var(--darker) !important;
+    color: var(--light) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3) !important;
+}
+
+.leaflet-popup-tip {
+    background: var(--darker) !important;
+}
