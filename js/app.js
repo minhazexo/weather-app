@@ -36,38 +36,29 @@ class GeoWeatherApp {
     }
 
     init() {
-        // Initialize map
+        // ✅ Initialize map
         this.mapManager.init();
         
-        // Set up button event listeners
+        // ✅ Buttons
         this.elements.refreshBtn.addEventListener('click', () => this.getCurrentPosition());
         this.elements.locateBtn.addEventListener('click', () => this.startWatchingPosition());
         
-        // Set up search functionality
+        // ✅ Search
         this.elements.searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 this.searchLocation(this.elements.searchInput.value);
             }
         });
         
-        // Set up map controls
+        // ✅ Map controls
         this.elements.mapTypeSelector.addEventListener('change', (e) => {
             this.mapManager.setMapType(e.target.value);
         });
+        this.elements.zoomInBtn.addEventListener('click', () => this.mapManager.zoomIn());
+        this.elements.zoomOutBtn.addEventListener('click', () => this.mapManager.zoomOut());
+        this.elements.resetViewBtn.addEventListener('click', () => this.mapManager.resetView());
         
-        this.elements.zoomInBtn.addEventListener('click', () => {
-            this.mapManager.zoomIn();
-        });
-        
-        this.elements.zoomOutBtn.addEventListener('click', () => {
-            this.mapManager.zoomOut();
-        });
-        
-        this.elements.resetViewBtn.addEventListener('click', () => {
-            this.mapManager.resetView();
-        });
-        
-        // Try to get position on load
+        // ✅ Try to get position on load
         if (navigator.geolocation) {
             this.getCurrentPosition();
         } else {
@@ -77,7 +68,6 @@ class GeoWeatherApp {
 
     getCurrentPosition() {
         this.updateStatus('Requesting location...');
-        
         this.geolocationManager.getCurrentPosition(
             (position) => this.handlePositionSuccess(position),
             (error) => this.handlePositionError(error)
@@ -93,16 +83,16 @@ class GeoWeatherApp {
     }
 
     handlePositionSuccess(position) {
-        // Update location info
+        // ✅ Update location info
         this.updateLocationInfo(position);
         
-        // Update map
+        // ✅ Update map
         this.mapManager.update(position);
         
-        // Update weather
+        // ✅ Update weather
         this.updateWeather(position);
         
-        // Update status
+        // ✅ Hide permission prompt & show success
         this.updateStatus('Location acquired successfully');
         this.elements.permissionPrompt.style.display = 'none';
     }
@@ -123,7 +113,7 @@ class GeoWeatherApp {
         this.elements.longitude.textContent = longitude.toFixed(4);
         this.elements.accuracyValue.textContent = Math.round(accuracy);
         
-        // Update accuracy display styling
+        // ✅ Accuracy display styling
         if (accuracy < 50) {
             this.elements.accuracyDisplay.className = 'accuracy-display high';
         } else if (accuracy < 200) {
@@ -132,7 +122,7 @@ class GeoWeatherApp {
             this.elements.accuracyDisplay.className = 'accuracy-display';
         }
         
-        // Get city and country names
+        // ✅ Reverse geocoding (city, country)
         this.weatherManager.getReverseGeocoding(latitude, longitude)
             .then(location => {
                 this.elements.city.textContent = location.city;
@@ -141,32 +131,34 @@ class GeoWeatherApp {
     }
 
     async updateWeather(position) {
-        // Show loading indicator
+        // ✅ Show loading indicator
         this.elements.weatherDisplay.style.display = 'none';
         this.elements.weatherLoading.style.display = 'block';
         
         try {
             const weatherData = await this.weatherManager.fetchWeather(position);
             
-            // Update DOM with weather data
+            // ✅ Update DOM with weather data
             this.elements.temperature.textContent = weatherData.temperature;
             this.elements.windSpeed.textContent = weatherData.windSpeed;
             this.elements.humidity.textContent = weatherData.humidity;
-            this.elements.uvIndex.textContent = weatherData.uvIndex;
+            this.elements.uvIndex.textContent = weatherData.uvIndex; // Stays "N/A" unless we expand
             this.elements.pressure.textContent = weatherData.pressure;
             
-            // Update weather condition
+            // ✅ Update current weather condition (OpenWeather image)
             if (weatherData.condition) {
-                this.elements.weatherConditionIcon.className = `fas ${weatherData.condition.icon}`;
+                this.elements.weatherConditionIcon.innerHTML = `
+                    <img src="${weatherData.condition.icon}" alt="${weatherData.condition.text}" style="width:60px; height:60px;">
+                `;
                 this.elements.weatherConditionText.textContent = weatherData.condition.text;
             }
             
-            // Update forecast
+            // ✅ Update forecast
             if (weatherData.forecast && weatherData.forecast.length > 0) {
                 this.updateForecast(weatherData.forecast);
             }
             
-            // Hide loading, show weather
+            // ✅ Show weather
             this.elements.weatherLoading.style.display = 'none';
             this.elements.weatherDisplay.style.display = 'block';
         } catch (error) {
@@ -176,21 +168,23 @@ class GeoWeatherApp {
     }
     
     updateForecast(forecastData) {
-        // Clear previous forecast
+        // ✅ Clear previous forecast
         this.elements.forecastPreview.innerHTML = '<h3>5-Day Forecast</h3>';
         
-        // Create forecast items container
+        // ✅ Create forecast items container
         const forecastItems = document.createElement('div');
         forecastItems.className = 'forecast-items';
         
-        // Add forecast items
+        // ✅ Add forecast items
         forecastData.forEach(day => {
             const forecastItem = document.createElement('div');
             forecastItem.className = 'forecast-item';
             
             forecastItem.innerHTML = `
                 <div class="forecast-day">${day.day}</div>
-                <div class="forecast-icon"><i class="fas ${day.condition.icon}"></i></div>
+                <div class="forecast-icon">
+                    <img src="${day.condition.icon}" alt="${day.condition.text}" style="width:40px; height:40px;">
+                </div>
                 <div class="forecast-temp">${day.temperature}°</div>
             `;
             
@@ -208,22 +202,22 @@ class GeoWeatherApp {
         try {
             const locationData = await this.weatherManager.searchLocation(query);
             
-            // Create a position-like object to use with existing methods
+            // ✅ Fake "position" object for consistency
             const position = {
                 coords: {
                     latitude: locationData.latitude,
                     longitude: locationData.longitude,
-                    accuracy: 100 // Default accuracy since we don't have real accuracy data
+                    accuracy: 100 // default accuracy
                 }
             };
             
-            // Update the map and weather with the new location
+            // ✅ Update map & weather with new location
             this.handlePositionSuccess(position);
             
-            // Update status
+            // ✅ Status
             this.updateStatus(`Found location: ${locationData.display_name}`);
             
-            // Clear search input
+            // ✅ Clear search input
             this.elements.searchInput.value = '';
         } catch (error) {
             console.error('Error searching location:', error);
@@ -256,7 +250,7 @@ class GeoWeatherApp {
     }
 }
 
-// Initialize when DOM is loaded
+// ✅ Initialize app
 document.addEventListener('DOMContentLoaded', () => {
     const app = new GeoWeatherApp();
     app.init();
