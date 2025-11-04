@@ -138,17 +138,21 @@ class GeoWeatherApp {
         try {
             const weatherData = await this.weatherManager.fetchWeather(position);
             
+            if (!weatherData) {
+                throw new Error('No weather data received');
+            }
+            
             // ✅ Update DOM with weather data
             this.elements.temperature.textContent = weatherData.temperature;
             this.elements.windSpeed.textContent = weatherData.windSpeed;
             this.elements.humidity.textContent = weatherData.humidity;
-            this.elements.uvIndex.textContent = weatherData.uvIndex; // Stays "N/A" unless we expand
+            this.elements.uvIndex.textContent = weatherData.uvIndex;
             this.elements.pressure.textContent = weatherData.pressure;
             
             // ✅ Update current weather condition (OpenWeather image)
             if (weatherData.condition) {
                 this.elements.weatherConditionIcon.innerHTML = `
-                    <img src="${weatherData.condition.icon}" alt="${weatherData.condition.text}" style="width:60px; height:60px;">
+                    <img src="${weatherData.condition.icon}" alt="${weatherData.condition.text}">
                 `;
                 this.elements.weatherConditionText.textContent = weatherData.condition.text;
             }
@@ -164,6 +168,10 @@ class GeoWeatherApp {
         } catch (error) {
             console.error('Error fetching weather:', error);
             this.updateStatus('Failed to load weather data', 'error');
+            this.elements.weatherLoading.innerHTML = `
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>Failed to load weather data</p>
+            `;
         }
     }
     
@@ -183,7 +191,7 @@ class GeoWeatherApp {
             forecastItem.innerHTML = `
                 <div class="forecast-day">${day.day}</div>
                 <div class="forecast-icon">
-                    <img src="${day.condition.icon}" alt="${day.condition.text}" style="width:40px; height:40px;">
+                    <img src="${day.condition.icon}" alt="${day.condition.text}">
                 </div>
                 <div class="forecast-temp">${day.temperature}°</div>
             `;

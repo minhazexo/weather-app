@@ -1,15 +1,75 @@
-.leaflet-control-attribution {
-    background: rgba(0, 0, 0, 0.7) !important;
-    color: #ccc !important;
+/* Leaflet Map Overrides */
+.leaflet-container {
+  background: #1e3c72;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .leaflet-popup-content-wrapper {
-    background: var(--darker) !important;
-    color: var(--light) !important;
-    border-radius: 8px !important;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3) !important;
+  background: rgba(44, 62, 80, 0.95);
+  color: #ecf0f1;
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
 }
 
 .leaflet-popup-tip {
-    background: var(--darker) !important;
+  background: rgba(44, 62, 80, 0.95);
+}
+
+.leaflet-control-zoom a {
+  background: rgba(255, 255, 255, 0.9);
+  color: #2c3e50;
+  border-bottom: 1px solid #ccc;
+}
+
+.leaflet-control-zoom a:hover {
+  background: #3498db;
+  color: white;
+}
+
+/* Custom marker styles */
+.custom-marker {
+  background: transparent;
+  border: none;
+}
+
+.marker-pin {
+  width: 30px;
+  height: 30px;
+  background: #e74c3c;
+  border-radius: 50% 50% 50% 0;
+  position: absolute;
+  transform: rotate(-45deg);
+  left: 50%;
+  top: 50%;
+  margin: -15px 0 0 -15px;
+}
+
+.marker-pin::after {
+  content: '';
+  width: 24px;
+  height: 24px;
+  margin: 3px 0 0 3px;
+  background: white;
+  position: absolute;
+  border-radius: 50%;
+}
+
+.custom-marker i {
+  position: absolute;
+  width: 22px;
+  font-size: 12px;
+  left: 0;
+  right: 0;
+  margin: 10px auto;
+  text-align: center;
+  color: #e74c3c;
+  z-index: 1;
+}
+
+/* Accuracy circle styling */
+.leaflet-interactive {
+  stroke: #e74c3c;
+  stroke-width: 2;
+  fill: #e74c3c;
+  fill-opacity: 0.1;
 }
