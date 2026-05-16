@@ -1,54 +1,67 @@
 /* Leaflet Map Overrides */
 .leaflet-container {
-  background: #1e3c72;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #0f0c29;
+  font-family: 'Outfit', sans-serif;
 }
 
 .leaflet-popup-content-wrapper {
-  background: rgba(44, 62, 80, 0.95);
-  color: #ecf0f1;
-  border-radius: 8px;
-  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  color: #f8fafc;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .leaflet-popup-tip {
-  background: rgba(44, 62, 80, 0.95);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.leaflet-popup-close-button {
+  color: #f8fafc !important;
 }
 
 .leaflet-control-zoom a {
-  background: rgba(255, 255, 255, 0.9);
-  color: #2c3e50;
-  border-bottom: 1px solid #ccc;
+  background: rgba(99, 102, 241, 0.9) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
 }
 
 .leaflet-control-zoom a:hover {
-  background: #3498db;
-  color: white;
+  background: #6366f1 !important;
 }
 
-/* Custom marker styles */
+.leaflet-control-attribution {
+  background: rgba(15, 12, 41, 0.8) !important;
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.leaflet-control-attribution a {
+  color: #818cf8 !important;
+}
+
 .custom-marker {
   background: transparent;
   border: none;
 }
 
 .marker-pin {
-  width: 30px;
-  height: 30px;
-  background: #e74c3c;
+  width: 35px;
+  height: 35px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
   border-radius: 50% 50% 50% 0;
   position: absolute;
   transform: rotate(-45deg);
   left: 50%;
   top: 50%;
-  margin: -15px 0 0 -15px;
+  margin: -17px 0 0 -17px;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.5);
 }
 
 .marker-pin::after {
   content: '';
-  width: 24px;
-  height: 24px;
-  margin: 3px 0 0 3px;
+  width: 28px;
+  height: 28px;
+  margin: 4px 0 0 4px;
   background: white;
   position: absolute;
   border-radius: 50%;
@@ -56,20 +69,19 @@
 
 .custom-marker i {
   position: absolute;
-  width: 22px;
-  font-size: 12px;
+  width: 20px;
+  font-size: 14px;
   left: 0;
   right: 0;
-  margin: 10px auto;
+  margin: 12px auto;
   text-align: center;
-  color: #e74c3c;
+  color: #6366f1;
   z-index: 1;
 }
 
-/* Accuracy circle styling */
 .leaflet-interactive {
-  stroke: #e74c3c;
+  stroke: #6366f1;
   stroke-width: 2;
-  fill: #e74c3c;
-  fill-opacity: 0.1;
+  fill: rgba(99, 102, 241, 0.15);
+  fill-opacity: 0.3;
 }

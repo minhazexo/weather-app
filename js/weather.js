@@ -47,12 +47,25 @@ class WeatherManager {
             console.log("UV index not available");
         }
 
+        // Format time from timestamp
+        const formatTime = (timestamp) => {
+            const date = new Date(timestamp * 1000);
+            return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        };
+
         return {
             temperature: Math.round(data.main.temp),
+            feelsLike: Math.round(data.main.feels_like),
+            highTemp: Math.round(data.main.temp_max),
+            lowTemp: Math.round(data.main.temp_min),
             windSpeed: (data.wind.speed * 3.6).toFixed(1), // m/s ➡ km/h
             humidity: data.main.humidity,
             uvIndex: uvIndex,
             pressure: data.main.pressure,
+            visibility: (data.visibility / 1000).toFixed(1), // meters to km
+            cloudCover: data.clouds.all,
+            sunrise: formatTime(data.sys.sunrise),
+            sunset: formatTime(data.sys.sunset),
             condition: {
                 text: data.weather[0].description,
                 icon: `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`,
