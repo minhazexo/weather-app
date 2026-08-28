@@ -2,9 +2,12 @@
 <html class="dark" lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="SkyLens Weather Dashboard - Real-time weather based on your location">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="SkyLens Weather Dashboard - Real-time weather with interactive 3D Earth globe">
   <meta name="theme-color" content="#0b0c3d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>SkyLens - Weather Dashboard</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -12,8 +15,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
   <!-- Inter Font -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <!-- CesiumJS -->
+  <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.121/Build/Cesium/Widgets/widgets.css">
   <!-- Custom CSS -->
   <link rel="stylesheet" href="css/styles.css">
   
@@ -110,219 +113,345 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body class="text-on-surface min-h-screen flex flex-col">
+  <!-- Skip to content for keyboard nav -->
+  <a href="#mainContent" class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[10000] focus:bg-primary focus:text-surface focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-lg focus:outline-none">Skip to main content</a>
   <!-- TopAppBar -->
   <header class="sticky top-0 z-40 bg-surface/40 backdrop-blur-xl border-b border-white/20 shadow-[0_8px_32px_0_rgba(11,12,61,0.37)] full-width">
-    <div class="flex justify-between items-center w-full px-container-padding py-base max-w-7xl mx-auto">
+    <div class="flex justify-between items-center w-full px-4 md:px-container-padding py-2 md:py-base max-w-7xl mx-auto">
       <!-- Brand -->
       <div class="flex items-center gap-2">
         <span class="material-symbols-outlined text-primary-fixed-dim">cloud</span>
         <span class="font-headline-md text-headline-md text-primary-fixed-dim tracking-tighter">SkyLens</span>
       </div>
       <!-- Search Bar (Center) -->
-      <div class="hidden md:flex flex-1 max-w-md mx-8">
+      <div class="hidden md:flex flex-1 max-w-md mx-8 relative" id="searchContainer">
         <div class="relative w-full">
           <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
-          <input id="searchInput" class="w-full glass-search rounded-full py-2 pl-12 pr-4 text-on-surface font-body-md text-body-md focus:outline-none focus:ring-1 focus:ring-primary-container placeholder:text-on-surface-variant/60" placeholder="Search city or zip code" type="text" inputmode="search" autocomplete="off"/>
+          <input id="searchInput" class="w-full glass-search rounded-full py-2 pl-12 pr-10 text-on-surface font-body-md text-body-md focus:outline-none focus:ring-1 focus:ring-primary-container placeholder:text-on-surface-variant/60" placeholder="Search city or zip code" type="text" inputmode="search" autocomplete="off" aria-label="Search for a city" aria-autocomplete="list" aria-controls="searchSuggestions"/>
+          <button id="clearSearch" class="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60 hover:text-on-surface transition-colors hidden" aria-label="Clear search">
+            <span class="material-symbols-outlined text-lg">close</span>
+          </button>
+        </div>
+        <!-- Search Suggestions Dropdown -->
+        <div id="searchSuggestions" class="absolute top-full left-0 right-0 mt-2 glass-panel rounded-xl overflow-hidden z-50 hidden max-h-[320px] overflow-y-auto" role="listbox">
         </div>
       </div>
       <!-- Actions -->
-      <div class="flex items-center gap-4">
-        <!-- Temp Toggle -->
-        <div id="tempUnitBtn" class="hidden md:flex bg-surface-container-high rounded-full p-1 border border-white/10 cursor-pointer">
-          <button id="tempC" class="px-3 py-1 rounded-full bg-primary/20 text-primary font-label-caps text-label-caps">°C</button>
+      <div class="flex items-center gap-2">
+        <button id="mobileSearchBtn" class="md:hidden text-on-surface-variant/80 hover:bg-white/10 transition-colors duration-300 p-2 rounded-full flex items-center justify-center" aria-label="Search for a city">
+          <span class="material-symbols-outlined">search</span>
+        </button>
+        <div id="tempUnitBtn" class="hidden md:flex bg-surface-container-high rounded-full p-1 border border-white/10 cursor-pointer select-none">
+          <button id="tempC" class="px-3 py-1 rounded-full bg-primary/20 text-primary font-label-caps text-label-caps transition-all duration-300">°C</button>
           <button id="tempF" class="px-3 py-1 rounded-full text-on-surface-variant hover:text-primary transition-colors font-label-caps text-label-caps">°F</button>
         </div>
+        <button id="themeToggle" class="text-on-surface-variant/80 hover:bg-white/10 transition-colors duration-300 p-2 rounded-full flex items-center justify-center" aria-label="Toggle theme">
+          <span id="themeIcon" class="material-symbols-outlined">dark_mode</span>
+        </button>
+        <button id="favBtn" class="text-on-surface-variant/80 hover:bg-white/10 transition-colors duration-300 p-2 rounded-full flex items-center justify-center" aria-label="Save current location to favorites">
+          <span id="favIcon" class="material-symbols-outlined">favorite_border</span>
+        </button>
+        <button id="shareBtn" class="text-on-surface-variant/80 hover:bg-white/10 transition-colors duration-300 p-2 rounded-full flex items-center justify-center" aria-label="Share weather">
+          <span class="material-symbols-outlined">share</span>
+        </button>
         <button id="locateBtn" class="text-on-surface-variant/80 hover:bg-white/10 transition-colors duration-300 p-2 rounded-full flex items-center justify-center" aria-label="Get my current location">
           <span class="material-symbols-outlined">my_location</span>
         </button>
-        <button id="refreshBtn" class="text-on-surface-variant/80 hover:bg-white/10 transition-colors duration-300 p-2 rounded-full flex items-center justify-center md:hidden" aria-label="Refresh weather">
+        <button id="refreshBtn" class="text-on-surface-variant/80 hover:bg-white/10 transition-colors duration-300 p-2 rounded-full flex items-center justify-center" aria-label="Refresh weather">
           <span class="material-symbols-outlined">refresh</span>
         </button>
       </div>
+    </div>
+    <!-- Mobile Search Overlay -->
+    <div id="mobileSearchOverlay" class="md:hidden hidden fixed inset-0 z-50 bg-surface/95 backdrop-blur-xl">
+      <div class="flex items-center gap-3 p-4">
+        <button id="closeMobileSearch" class="text-on-surface-variant p-3 rounded-full hover:bg-white/10 min-w-[44px] min-h-[44px] flex items-center justify-center">
+          <span class="material-symbols-outlined">arrow_back</span>
+        </button>
+        <div class="relative flex-1">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+          <input id="mobileSearchInput" class="w-full glass-search rounded-full py-2.5 pl-11 pr-4 text-on-surface font-body-md text-body-md focus:outline-none placeholder:text-on-surface-variant/60" placeholder="Search city or zip code" type="text" inputmode="search" autocomplete="off"/>
+        </div>
+      </div>
+      <div id="mobileSearchSuggestions" class="px-4 hidden"></div>
     </div>
   </header>
 
   <!-- Permission Prompt -->
   <div id="permissionPrompt" class="hidden mx-4 mt-4 glass-panel rounded-xl p-4 flex items-center gap-3">
     <span class="material-symbols-outlined text-error">warning</span>
-    <p class="font-body-md text-body-md text-on-surface">Location access required</p>
+    <div class="flex-1">
+      <p class="font-body-md text-body-md text-on-surface">Location access required for weather data</p>
+      <button id="retryLocationBtn" class="mt-2 text-sm text-primary hover:underline">Try again</button>
+    </div>
+    <button id="dismissPermission" class="text-on-surface-variant hover:text-on-surface">
+      <span class="material-symbols-outlined text-lg">close</span>
+    </button>
   </div>
 
   <!-- Main Content -->
-  <main class="flex-1 w-full max-w-7xl mx-auto px-container-padding py-8 grid grid-cols-1 md:grid-cols-12 gap-container-padding">
+  <main id="mainContent" class="flex-1 w-full max-w-7xl mx-auto px-4 md:px-container-padding py-6 md:py-8 grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-container-padding" role="main" aria-label="Weather dashboard">
     <!-- Left/Main Column (8 cols) -->
-    <div class="md:col-span-8 flex flex-col gap-container-padding">
+    <div class="md:col-span-8 flex flex-col gap-4 md:gap-container-padding">
       <!-- Hero Current Weather -->
-      <section class="glass-panel rounded-xl p-8 flex flex-col md:flex-row justify-between items-start md:items-center relative overflow-hidden">
-        <!-- Decorative blurred shapes -->
-        <div class="absolute -top-20 -right-20 w-64 h-64 bg-primary/20 rounded-full blur-[80px]"></div>
+      <section id="heroSection" class="glass-panel rounded-xl p-5 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center relative overflow-hidden weather-hero" data-weather-bg="default">
+        <!-- Weather Particles -->
+        <div id="weatherParticles" class="absolute inset-0 pointer-events-none overflow-hidden z-0" aria-hidden="true"></div>
+        <div class="absolute -top-20 -right-20 w-64 h-64 bg-primary/20 rounded-full blur-[80px] hero-glow-1"></div>
+        <div class="absolute -bottom-20 -left-20 w-48 h-48 bg-secondary/15 rounded-full blur-[60px] hero-glow-2"></div>
         
         <!-- Loading State -->
-        <div id="weatherLoading" class="relative z-10 flex flex-col items-center justify-center w-full py-12">
-          <span class="material-symbols-outlined text-primary-fixed-dim animate-spin text-4xl">sync</span>
-          <p class="font-body-md text-body-md text-on-surface-variant mt-4">Loading weather data...</p>
+        <div id="weatherLoading" class="relative z-10 w-full" aria-busy="true" aria-label="Loading weather data">
+          <div class="skeleton-block mb-2" style="width: 180px; height: 14px;"></div>
+          <div class="skeleton-block mb-1" style="width: 120px; height: 10px;"></div>
+          <div class="skeleton-block mb-4" style="width: 200px; height: 12px;"></div>
+          <div class="skeleton-block" style="width: 100px; height: 48px;"></div>
+          <div class="skeleton-block mt-2" style="width: 160px; height: 18px;"></div>
+          <div class="flex gap-3 mt-4">
+            <div class="skeleton-block" style="width: 60px; height: 14px;"></div>
+            <div class="skeleton-block" style="width: 60px; height: 14px;"></div>
+            <div class="skeleton-block" style="width: 80px; height: 14px;"></div>
+            <div class="skeleton-block" style="width: 90px; height: 14px;"></div>
+          </div>
         </div>
 
         <!-- Weather Display -->
-        <div id="weatherDisplay" class="hidden relative z-10 flex flex-col gap-2 w-full">
+        <div id="weatherDisplay" class="hidden relative z-10 flex flex-col gap-2 w-full" aria-live="polite" aria-label="Current weather data">
           <div class="flex items-center gap-2 text-on-surface-variant">
             <span class="material-symbols-outlined text-sm">location_on</span>
             <h2 id="headerCity" class="font-headline-md text-headline-md">London, UK</h2>
           </div>
+          <p id="greetingText" class="font-body-md text-on-surface-variant/70 text-sm">Good morning</p>
           <div class="mt-4">
-            <div class="flex items-baseline gap-2">
+            <div class="flex items-start gap-1">
               <h1 id="temperature" class="font-display-temp-mobile md:font-display-temp text-primary-fixed-dim">24°</h1>
-              <span id="tempUnit" class="font-headline-md text-on-surface-variant">C</span>
+              <span id="tempUnit" class="font-headline-md text-on-surface-variant mt-1">C</span>
             </div>
             <p id="weatherConditionText" class="font-headline-lg text-headline-lg text-primary mt-2">Partly Cloudy</p>
           </div>
-          <div class="flex flex-wrap items-center gap-4 mt-4 font-body-md text-body-md text-on-surface-variant">
-            <span class="flex items-center gap-1"><span class="material-symbols-outlined text-sm">arrow_upward</span> <span id="highTemp">26</span>°</span>
-            <span class="flex items-center gap-1"><span class="material-symbols-outlined text-sm">arrow_downward</span> <span id="lowTemp">18</span>°</span>
-            <span class="flex items-center gap-1 ml-4"><span class="material-symbols-outlined text-sm">water_drop</span> <span id="humidity">65</span>% Humidity</span>
+          <div class="flex flex-wrap items-center gap-3 mt-4 font-body-md text-body-md text-on-surface-variant">
+            <span class="flex items-center gap-1"><span class="material-symbols-outlined text-sm text-orange-400">arrow_upward</span> <span id="highTemp">26</span>°</span>
+            <span class="flex items-center gap-1"><span class="material-symbols-outlined text-sm text-blue-400">arrow_downward</span> <span id="lowTemp">18</span>°</span>
+            <span class="w-px h-4 bg-white/20 hidden md:block"></span>
+            <span class="flex items-center gap-1"><span class="material-symbols-outlined text-sm">water_drop</span> <span id="humidity">65</span>%</span>
+            <span class="flex items-center gap-1"><span class="material-symbols-outlined" id="feelsLikeArrow" style="font-size:14px">remove</span> Feels <span id="feelsLikeHero">22</span>°</span>
+          </div>
+          <div id="lastUpdated" class="flex items-center gap-1 text-xs text-on-surface-variant/50 mt-2">
+            <span class="material-symbols-outlined text-xs">schedule</span>
+            <span>Updated just now</span>
           </div>
         </div>
 
-        <!-- Animated Icon Representation -->
-        <div class="relative z-10 w-48 h-48 mt-8 md:mt-0 flex items-center justify-center">
-          <span id="weatherIcon" class="material-symbols-outlined text-[120px] text-primary-fixed-dim drop-shadow-[0_0_20px_rgba(0,219,231,0.5)] hidden">partly_cloudy_day</span>
+        <div class="relative z-10 w-32 h-32 md:w-48 md:h-48 mt-6 md:mt-0 flex items-center justify-center">
+          <span id="weatherIcon" class="material-symbols-outlined text-[80px] md:text-[120px] text-primary-fixed-dim drop-shadow-[0_0_20px_rgba(0,219,231,0.5)] hidden icon-float">partly_cloudy_day</span>
         </div>
       </section>
 
-      <!-- Hourly Forecast Ribbon -->
-      <section class="glass-panel rounded-xl p-6">
-        <h3 class="font-body-lg text-body-lg text-on-surface mb-4 flex items-center gap-2">
-          <span class="material-symbols-outlined">schedule</span> Hourly Forecast
-        </h3>
-        <div id="hourlyForecast" class="flex overflow-x-auto gap-4 pb-2 no-scrollbar">
-          <!-- Dynamic content will be inserted here -->
-        </div>
-      </section>
 
-      <!-- Metrics Grid -->
-      <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <!-- Wind -->
-        <div class="glass-panel rounded-xl p-4 flex flex-col justify-between aspect-square">
-          <div class="flex items-center gap-2 text-on-surface-variant">
-            <span class="material-symbols-outlined text-sm">air</span>
-            <span class="font-label-caps text-label-caps">Wind</span>
-          </div>
-          <div>
-            <div class="font-headline-lg text-headline-lg text-on-surface"><span id="windSpeed">12</span></div>
-            <div class="font-body-md text-body-md text-on-surface-variant mt-1">km/h</div>
-          </div>
-          <div class="flex items-center gap-2 text-on-surface-variant text-sm mt-2">
-            <span id="windDirection" class="material-symbols-outlined text-xs transform -rotate-45">navigation</span> <span id="windDirText">NE</span>
-          </div>
-        </div>
-        <!-- Feels Like -->
-        <div class="glass-panel rounded-xl p-4 flex flex-col justify-between aspect-square">
-          <div class="flex items-center gap-2 text-on-surface-variant">
-            <span class="material-symbols-outlined text-sm">thermostat</span>
-            <span class="font-label-caps text-label-caps">Feels Like</span>
-          </div>
-          <div>
-            <div class="font-headline-lg text-headline-lg text-on-surface"><span id="feelsLike">22</span>°</div>
-          </div>
-        </div>
-        <!-- Pressure -->
-        <div class="glass-panel rounded-xl p-4 flex flex-col justify-between aspect-square">
-          <div class="flex items-center gap-2 text-on-surface-variant">
-            <span class="material-symbols-outlined text-sm">compress</span>
-            <span class="font-label-caps text-label-caps">Pressure</span>
-          </div>
-          <div>
-            <div class="font-headline-lg text-headline-lg text-on-surface"><span id="pressure">1013</span></div>
-            <div class="font-body-md text-body-md text-on-surface-variant mt-1">hPa</div>
-          </div>
-        </div>
-        <!-- Visibility -->
-        <div class="glass-panel rounded-xl p-4 flex flex-col justify-between aspect-square">
-          <div class="flex items-center gap-2 text-on-surface-variant">
-            <span class="material-symbols-outlined text-sm">visibility</span>
-            <span class="font-label-caps text-label-caps">Visibility</span>
-          </div>
-          <div>
-            <div class="font-headline-lg text-headline-lg text-on-surface"><span id="visibility">10</span></div>
-            <div class="font-body-md text-body-md text-on-surface-variant mt-1">km</div>
-          </div>
-        </div>
-        <!-- UV Index -->
-        <div class="glass-panel rounded-xl p-4 flex flex-col justify-between aspect-square">
-          <div class="flex items-center gap-2 text-on-surface-variant">
-            <span class="material-symbols-outlined text-sm">light_mode</span>
-            <span class="font-label-caps text-label-caps">UV Index</span>
-          </div>
-          <div>
-            <div class="font-headline-lg text-headline-lg text-on-surface"><span id="uvIndex">2</span></div>
-            <div class="font-body-md text-body-md text-on-surface-variant mt-1">Low</div>
-          </div>
-        </div>
-        <!-- Cloud Cover -->
-        <div class="glass-panel rounded-xl p-4 flex flex-col justify-between aspect-square">
-          <div class="flex items-center gap-2 text-on-surface-variant">
-            <span class="material-symbols-outlined text-sm">cloud</span>
-            <span class="font-label-caps text-label-caps">Clouds</span>
-          </div>
-          <div>
-            <div class="font-headline-lg text-headline-lg text-on-surface"><span id="cloudCover">40</span>%</div>
-          </div>
-        </div>
-        <!-- Sunrise -->
-        <div class="glass-panel rounded-xl p-4 flex flex-col justify-between aspect-square">
-          <div class="flex items-center gap-2 text-on-surface-variant">
-            <span class="material-symbols-outlined text-sm">wb_sunny</span>
-            <span class="font-label-caps text-label-caps">Sunrise</span>
-          </div>
-          <div>
-            <div class="font-headline-lg text-headline-lg text-primary"><span id="sunrise">06:32</span></div>
-          </div>
-        </div>
-        <!-- Sunset -->
-        <div class="glass-panel rounded-xl p-4 flex flex-col justify-between aspect-square">
-          <div class="flex items-center gap-2 text-on-surface-variant">
-            <span class="material-symbols-outlined text-sm">wb_twilight</span>
-            <span class="font-label-caps text-label-caps">Sunset</span>
-          </div>
-          <div>
-            <div class="font-headline-lg text-headline-lg text-secondary"><span id="sunset">19:45</span></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Map Section -->
-      <section class="glass-panel rounded-xl p-6">
-        <div class="flex items-center justify-between mb-4">
+      <!-- 3D Globe Section -->
+      <section class="glass-panel rounded-xl overflow-hidden relative" id="globeSection">
+        <!-- Globe Header -->
+        <div class="flex items-center justify-between p-4 border-b border-white/5">
           <h3 class="font-body-lg text-body-lg text-on-surface flex items-center gap-2">
-            <span class="material-symbols-outlined">map</span> Location Map
+            <span class="material-symbols-outlined">public</span> 3D Weather Globe
           </h3>
-          <select id="mapTypeSelector" class="glass-search rounded-lg py-1 px-3 text-on-surface text-sm focus:outline-none" aria-label="Select map type">
-            <option value="standard">Standard</option>
-            <option value="satellite">Satellite</option>
-            <option value="terrain">Terrain</option>
-          </select>
+          <span id="globeStatusText" class="text-xs text-on-surface-variant/50">Loading...</span>
         </div>
-        <div class="map-container relative rounded-xl overflow-hidden h-[300px]">
-          <div id="map" class="absolute inset-0"></div>
+
+        <!-- Globe Container -->
+        <div id="cesiumContainer" class="relative w-full" style="height: 500px;">
+          <!-- Cesium viewer renders here -->
+          
+          <!-- Globe Loading Overlay -->
+          <div id="globeLoading" class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-surface/80 backdrop-blur-sm">
+            <div class="relative mb-4">
+              <span class="material-symbols-outlined text-primary-fixed-dim text-5xl animate-spin">sync</span>
+            </div>
+            <p class="font-body-md text-body-md text-on-surface-variant">Initializing 3D Weather Globe...</p>
+            <p class="text-xs text-on-surface-variant/50 mt-2">This may take a moment on first load</p>
+          </div>
+
+          <!-- Globe Fallback -->
+          <div id="globeFallback" class="hidden absolute inset-0 z-10 flex flex-col items-center justify-center bg-surface/80 backdrop-blur-sm">
+            <span class="material-symbols-outlined text-error text-5xl mb-4">public_off</span>
+            <p class="font-body-md text-body-md text-on-surface mb-2">3D Globe unavailable</p>
+            <p class="text-sm text-on-surface-variant/60 mb-4">WebGL may not be supported in your browser</p>
+          </div>
+
+          <!-- Globe Toolbar (floating) -->
+          <div id="globeToolbar" class="absolute top-3 right-3 z-20 flex flex-col gap-2">
+            <button id="globeZoomIn" class="globe-toolbar-btn" aria-label="Zoom in" title="Zoom in">
+              <span class="material-symbols-outlined">add</span>
+            </button>
+            <button id="globeZoomOut" class="globe-toolbar-btn" aria-label="Zoom out" title="Zoom out">
+              <span class="material-symbols-outlined">remove</span>
+            </button>
+            <button id="globeTilt" class="globe-toolbar-btn" aria-label="Tilt view" title="Tilt view">
+              <span class="material-symbols-outlined">360</span>
+            </button>
+            <button id="globeReset" class="globe-toolbar-btn" aria-label="Reset view" title="Reset view">
+              <span class="material-symbols-outlined">home</span>
+            </button>
+            <button id="globeLocate" class="globe-toolbar-btn" aria-label="Fly to my location" title="Fly to my location">
+              <span class="material-symbols-outlined">my_location</span>
+            </button>
+          </div>
+
+          <!-- Layer Control Panel -->
+          <div id="layerPanel" class="absolute top-3 left-3 z-20">
+            <button id="layerPanelToggle" class="globe-toolbar-btn mb-2" aria-label="Toggle layers" title="Map layers">
+              <span class="material-symbols-outlined">layers</span>
+            </button>
+            <div id="layerPanelContent" class="hidden glass-panel rounded-xl p-4 min-w-[180px] max-h-[70vh] overflow-y-auto">
+              <!-- Base Map Layers -->
+              <div class="mb-4">
+                <h4 class="font-label-caps text-label-caps text-on-surface-variant/70 mb-2">MAP</h4>
+                <div id="baseLayerOptions" class="space-y-1">
+                  <!-- Populated by JS -->
+                </div>
+              </div>
+              <!-- Weather Overlay Layers -->
+              <div>
+                <h4 class="font-label-caps text-label-caps text-on-surface-variant/70 mb-2">WEATHER</h4>
+                <div id="weatherLayerOptions" class="space-y-1">
+                  <!-- Populated by JS -->
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div id="geoStatus" class="mt-4 p-4 rounded-xl bg-surface-container-low/50 flex items-center gap-3">
+
+        <!-- Globe Geo Status -->
+        <div id="geoStatus" class="p-4 bg-surface-container-low/50 flex items-center gap-3">
           <span id="statusIcon" class="material-symbols-outlined text-primary">check_circle</span>
-          <div class="status-text">
+          <div class="status-text flex-1">
             <h4 id="statusTitle" class="font-body-md text-body-md text-on-surface">Location Acquired</h4>
             <p id="statusText" class="font-body-md text-body-md text-on-surface-variant">Acquiring location...</p>
           </div>
         </div>
       </section>
+
+      <!-- Hourly Forecast Ribbon -->
+      <section class="glass-panel rounded-xl p-4 md:p-6" aria-label="Hourly forecast">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-body-lg text-body-lg text-on-surface flex items-center gap-2">
+            <span class="material-symbols-outlined">schedule</span> Hourly Forecast
+          </h3>
+          <span class="font-label-caps text-label-caps text-on-surface-variant/60">NEXT 8 HOURS</span>
+        </div>
+        <div id="hourlyForecast" class="flex overflow-x-auto gap-3 pb-2 no-scrollbar" aria-label="Hourly forecast" role="region">
+          <!-- Skeleton placeholders for loading -->
+          <div class="hourly-skeleton flex gap-3">
+            <div class="skeleton-block" style="width: 72px; height: 100px; border-radius: 12px;"></div>
+            <div class="skeleton-block" style="width: 72px; height: 100px; border-radius: 12px;"></div>
+            <div class="skeleton-block" style="width: 72px; height: 100px; border-radius: 12px;"></div>
+            <div class="skeleton-block" style="width: 72px; height: 100px; border-radius: 12px;"></div>
+            <div class="skeleton-block" style="width: 72px; height: 100px; border-radius: 12px;"></div>
+            <div class="skeleton-block" style="width: 72px; height: 100px; border-radius: 12px;"></div>
+            <div class="skeleton-block" style="width: 72px; height: 100px; border-radius: 12px;"></div>
+            <div class="skeleton-block" style="width: 72px; height: 100px; border-radius: 12px;"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Weather Alerts -->
+      <section id="alertsSection" class="hidden" aria-label="Weather alerts">
+        <div id="alertsContainer"></div>
+      </section>
+
+      <!-- AQI Breakdown Detail -->
+      <section id="aqiDetailSection" class="hidden glass-panel rounded-xl p-4 md:p-6" aria-label="Air quality breakdown">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-body-lg text-body-lg text-on-surface flex items-center gap-2">
+            <span class="material-symbols-outlined">health_and_safety</span> Air Quality Detail
+          </h3>
+          <button id="aqiDetailClose" class="text-on-surface-variant hover:text-on-surface p-1 rounded-full hover:bg-white/10 transition-colors" aria-label="Close air quality detail">
+            <span class="material-symbols-outlined text-lg">close</span>
+          </button>
+        </div>
+        <div id="aqiDetailContent" class="grid grid-cols-2 md:grid-cols-3 gap-3"></div>
+        <div id="aqiHealthAdvice" class="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/10"></div>
+      </section>
+
+      <!-- Metrics Grid -->
+      <section class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4" aria-label="Weather metrics grid">
+        <div class="glass-panel rounded-xl p-3 md:p-4 flex flex-col justify-between">
+          <div class="flex items-center gap-2 text-on-surface-variant"><span class="material-symbols-outlined text-sm">air</span><span class="font-label-caps text-label-caps">AQI</span></div>
+          <div><div class="font-headline-lg text-headline-lg" id="aqiValue"><span id="aqi">--</span></div><div id="aqiLabel" class="font-body-md text-body-md text-on-surface-variant mt-1">--</div></div>
+          <div class="w-full h-1.5 bg-surface-container-highest rounded-full mt-3 overflow-hidden"><div id="aqiBar" class="h-full bg-primary-fixed-dim rounded-full transition-all duration-700" style="width: 0%"></div></div>
+        </div>
+        <div class="glass-panel rounded-xl p-3 md:p-4 flex flex-col justify-between">
+          <div class="flex items-center gap-2 text-on-surface-variant"><span class="material-symbols-outlined text-sm">air</span><span class="font-label-caps text-label-caps">Wind</span></div>
+          <div><div class="font-headline-lg text-headline-lg text-on-surface"><span id="windSpeed">12</span></div><div class="font-body-md text-body-md text-on-surface-variant mt-1">km/h</div></div>
+          <div class="flex items-center gap-2 text-on-surface-variant text-sm mt-2"><span id="windDirection" class="material-symbols-outlined text-xs transform -rotate-45">navigation</span> <span id="windDirText">NE</span></div>
+        </div>
+        <div class="glass-panel rounded-xl p-3 md:p-4 flex flex-col justify-between">
+          <div class="flex items-center gap-2 text-on-surface-variant"><span class="material-symbols-outlined text-sm">water_drop</span><span class="font-label-caps text-label-caps">Humidity</span></div>
+          <div><div class="font-headline-lg text-headline-lg text-on-surface"><span id="humidityGrid">65</span>%</div></div>
+          <div class="w-full h-1.5 bg-surface-container-highest rounded-full mt-3 overflow-hidden"><div id="humidityBar" class="h-full bg-secondary rounded-full transition-all duration-700" style="width: 65%"></div></div>
+        </div>
+        <div class="glass-panel rounded-xl p-3 md:p-4 flex flex-col justify-between">
+          <div class="flex items-center gap-2 text-on-surface-variant"><span class="material-symbols-outlined text-sm">light_mode</span><span class="font-label-caps text-label-caps">UV Index</span></div>
+          <div><div class="font-headline-lg text-headline-lg text-on-surface"><span id="uvIndex">2</span></div><div id="uvLabel" class="font-body-md text-body-md text-on-surface-variant mt-1">Low</div></div>
+          <div class="w-full h-1.5 bg-surface-container-highest rounded-full mt-3 overflow-hidden"><div id="uvBar" class="h-full bg-tertiary-fixed-dim rounded-full transition-all duration-700" style="width: 15%"></div></div>
+        </div>
+        <div class="glass-panel rounded-xl p-3 md:p-4 flex flex-col justify-between">
+          <div class="flex items-center gap-2 text-on-surface-variant"><span class="material-symbols-outlined text-sm">thermostat</span><span class="font-label-caps text-label-caps">Feels Like</span></div>
+          <div><div class="font-headline-lg text-headline-lg text-on-surface"><span id="feelsLike">22</span>°</div></div>
+        </div>
+        <div class="glass-panel rounded-xl p-3 md:p-4 flex flex-col justify-between">
+          <div class="flex items-center gap-2 text-on-surface-variant"><span class="material-symbols-outlined text-sm">compress</span><span class="font-label-caps text-label-caps">Pressure</span></div>
+          <div><div class="font-headline-lg text-headline-lg text-on-surface"><span id="pressure">1013</span></div><div class="font-body-md text-body-md text-on-surface-variant mt-1">hPa</div></div>
+        </div>
+        <div class="glass-panel rounded-xl p-3 md:p-4 flex flex-col justify-between">
+          <div class="flex items-center gap-2 text-on-surface-variant"><span class="material-symbols-outlined text-sm">visibility</span><span class="font-label-caps text-label-caps">Visibility</span></div>
+          <div><div class="font-headline-lg text-headline-lg text-on-surface"><span id="visibility">10</span></div><div class="font-body-md text-body-md text-on-surface-variant mt-1">km</div></div>
+        </div>
+        <div class="glass-panel rounded-xl p-3 md:p-4 flex flex-col justify-between">
+          <div class="flex items-center gap-2 text-on-surface-variant"><span class="material-symbols-outlined text-sm">cloud</span><span class="font-label-caps text-label-caps">Clouds</span></div>
+          <div><div class="font-headline-lg text-headline-lg text-on-surface"><span id="cloudCover">40</span>%</div></div>
+        </div>
+        <div class="glass-panel rounded-xl p-3 md:p-4 flex flex-col justify-between">
+          <div class="flex items-center gap-2 text-on-surface-variant"><span class="material-symbols-outlined text-sm">wb_sunny</span><span class="font-label-caps text-label-caps">Sunrise</span></div>
+          <div><div class="font-headline-lg text-headline-lg text-tertiary-fixed-dim"><span id="sunrise">06:32</span></div></div>
+        </div>
+        <div class="glass-panel rounded-xl p-3 md:p-4 flex flex-col justify-between">
+          <div class="flex items-center gap-2 text-on-surface-variant"><span class="material-symbols-outlined text-sm">wb_twilight</span><span class="font-label-caps text-label-caps">Sunset</span></div>
+          <div><div class="font-headline-lg text-headline-lg text-secondary"><span id="sunset">19:45</span></div></div>
+        </div>
+        <div class="glass-panel rounded-xl p-3 md:p-4 flex flex-col justify-between">
+          <div class="flex items-center gap-2 text-on-surface-variant"><span class="material-symbols-outlined text-sm">timer</span><span class="font-label-caps text-label-caps">Daylight</span></div>
+          <div><div class="font-headline-lg text-headline-lg text-on-surface"><span id="daylightHours">13h 13m</span></div></div>
+        </div>
+        <div class="glass-panel rounded-xl p-3 md:p-4 flex flex-col justify-between">
+          <div class="flex items-center gap-2 text-on-surface-variant"><span class="material-symbols-outlined text-sm">droplet</span><span class="font-label-caps text-label-caps">Dew Point</span></div>
+          <div><div class="font-headline-lg text-headline-lg text-on-surface"><span id="dewPoint">--</span>°</div></div>
+        </div>
+        <div class="glass-panel rounded-xl p-3 md:p-4 flex flex-col justify-between">
+          <div class="flex items-center gap-2 text-on-surface-variant"><span class="material-symbols-outlined text-sm">air</span><span class="font-label-caps text-label-caps">Wind Gust</span></div>
+          <div><div class="font-headline-lg text-headline-lg text-on-surface"><span id="windGust">--</span></div><div class="font-body-md text-body-md text-on-surface-variant mt-1">km/h</div></div>
+        </div>
+        <div class="glass-panel rounded-xl p-3 md:p-4 flex flex-col justify-between">
+          <div class="flex items-center gap-2 text-on-surface-variant"><span class="material-symbols-outlined text-sm">dark_mode</span><span class="font-label-caps text-label-caps">Moon Phase</span></div>
+          <div><div class="font-headline-lg text-headline-lg"><span id="moonPhase">🌑</span></div><div id="moonPhaseName" class="font-body-md text-body-md text-on-surface-variant mt-1">--</div></div>
+        </div>
+      </section>
+
     </div>
 
     <!-- Right Sidebar (4 cols) -->
-    <div class="md:col-span-4 flex flex-col gap-container-padding">
-      <!-- Location Info -->
-      <section class="glass-panel rounded-xl p-6">
-        <h3 class="font-body-lg text-body-lg text-on-surface mb-4 flex items-center gap-2">
-          <span class="material-symbols-outlined">location_on</span> Current Location
-        </h3>
-        <div class="space-y-4">
+    <div class="md:col-span-4 flex flex-col gap-4 md:gap-container-padding">
+      <!-- Location Info & Favorites -->
+      <section class="glass-panel rounded-xl p-4 md:p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-body-lg text-body-lg text-on-surface flex items-center gap-2">
+            <span class="material-symbols-outlined">location_on</span> Current Location
+          </h3>
+          <button id="toggleFavorites" class="text-on-surface-variant hover:text-primary transition-colors" aria-label="Toggle favorites panel">
+            <span class="material-symbols-outlined">star</span>
+          </button>
+        </div>
+        <div id="locationInfo" class="space-y-4">
           <div class="flex items-center gap-3">
             <span class="material-symbols-outlined text-primary-fixed-dim">place</span>
             <div>
@@ -335,54 +464,70 @@
             <span class="font-body-md text-body-md"><span id="latitude">0.0000</span>°, <span id="longitude">0.0000</span>°</span>
           </div>
         </div>
+        <div id="favoritesPanel" class="hidden mt-4 pt-4 border-t border-white/10">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="font-label-caps text-label-caps text-on-surface-variant">SAVED LOCATIONS</h4>
+            <span id="favCount" class="font-label-caps text-label-caps text-on-surface-variant/50">0</span>
+          </div>
+          <div id="favoritesList" class="space-y-2">
+            <p class="text-sm text-on-surface-variant/50 italic">No saved locations yet</p>
+          </div>
+        </div>
       </section>
 
       <!-- 7-Day Forecast -->
-      <section class="glass-panel rounded-xl p-6 h-full flex flex-col">
-        <h3 class="font-body-lg text-body-lg text-on-surface mb-6 flex items-center gap-2">
-          <span class="material-symbols-outlined">calendar_month</span> 7-Day Forecast
-        </h3>
-        <div id="forecastItems" class="flex flex-col gap-4 flex-1">
-          <!-- Forecast items will be added dynamically -->
+      <section class="glass-panel rounded-xl p-4 md:p-6 flex flex-col" aria-label="7-day weather forecast">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="font-body-lg text-body-lg text-on-surface flex items-center gap-2">
+            <span class="material-symbols-outlined">calendar_month</span> <span id="forecastTitle">7-Day Forecast</span>
+          </h3>
+          <span class="font-label-caps text-label-caps text-on-surface-variant/60" id="forecastCount">--</span>
+        </div>
+        <div id="forecastItems" class="flex flex-col flex-1">
+          <div class="flex flex-col gap-3 flex-1 items-center justify-center py-8">
+            <span class="material-symbols-outlined text-on-surface-variant/30 text-3xl">cloud</span>
+            <p class="text-sm text-on-surface-variant/50">Loading forecast...</p>
+          </div>
         </div>
       </section>
     </div>
   </main>
 
   <!-- BottomNavBar (Mobile Only) -->
-  <nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-4 pt-2 bg-surface/30 backdrop-blur-2xl border-t border-white/10 shadow-[0_-4px_24px_rgba(0,0,0,0.2)] rounded-t-xl">
-    <!-- Home (Active) -->
-    <a class="flex flex-col items-center justify-center bg-primary/20 text-primary dark:text-primary-container rounded-full px-4 py-1 hover:text-primary transition-all" href="#">
+  <nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pt-2 bg-surface/30 backdrop-blur-2xl border-t border-white/10 shadow-[0_-4px_24px_rgba(0,0,0,0.2)] rounded-t-xl" style="padding-bottom: max(16px, env(safe-area-inset-bottom));" aria-label="Mobile navigation">
+    <button class="flex flex-col items-center justify-center bg-primary/20 text-primary dark:text-primary-container rounded-full px-4 py-1 transition-all" aria-label="Home">
       <span class="material-symbols-outlined icon-fill">home</span>
       <span class="font-label-caps text-label-caps mt-1">Home</span>
-    </a>
-    <!-- Radar (Inactive) -->
-    <a class="flex flex-col items-center justify-center text-on-surface-variant/60 hover:text-primary transition-all" href="#">
-      <span class="material-symbols-outlined">explore</span>
-      <span class="font-label-caps text-label-caps mt-1">Radar</span>
-    </a>
-    <!-- Forecast (Inactive) -->
-    <a class="flex flex-col items-center justify-center text-on-surface-variant/60 hover:text-primary transition-all" href="#">
+    </button>
+    <button id="mobileRadarBtn" class="flex flex-col items-center justify-center text-on-surface-variant/60 hover:text-primary transition-all" aria-label="Globe">
+      <span class="material-symbols-outlined">public</span>
+      <span class="font-label-caps text-label-caps mt-1">Globe</span>
+    </button>
+    <button id="mobileForecastBtn" class="flex flex-col items-center justify-center text-on-surface-variant/60 hover:text-primary transition-all" aria-label="Forecast">
       <span class="material-symbols-outlined">calendar_month</span>
       <span class="font-label-caps text-label-caps mt-1">Forecast</span>
-    </a>
-    <!-- Alerts (Inactive) -->
-    <a class="flex flex-col items-center justify-center text-on-surface-variant/60 hover:text-primary transition-all" href="#">
+    </button>
+    <button id="mobileAlertsBtn" class="flex flex-col items-center justify-center text-on-surface-variant/60 hover:text-primary transition-all" aria-label="Alerts">
       <span class="material-symbols-outlined">notifications</span>
       <span class="font-label-caps text-label-caps mt-1">Alerts</span>
-    </a>
+    </button>
   </nav>
-  <!-- Spacer for mobile nav -->
-  <div class="h-20 md:hidden"></div>
+  <div class="md:hidden" style="height: max(80px, calc(64px + env(safe-area-inset-bottom)));"></div>
 
   <!-- Offline Indicator -->
-  <div id="offlineBanner" class="hidden fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-error-container text-on-error-container px-4 py-2 rounded-full font-body-md text-body-md" role="alert">
+  <div id="offlineBanner" class="hidden fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-error-container text-on-error-container px-4 py-2 rounded-full font-body-md text-body-md" role="alert" aria-live="assertive">
     <span class="material-symbols-outlined text-sm align-middle">wifi_off</span>
     <span>You are offline. Showing cached data.</span>
   </div>
 
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Toast Container -->
+  <div id="toastContainer" class="fixed bottom-24 md:bottom-8 right-4 z-[9999] flex flex-col gap-2 w-[calc(100%-32px)] md:w-auto max-w-sm"></div>
+
+  <!-- CesiumJS -->
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.121/Build/Cesium/Cesium.js"></script>
+  <script>window.CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.121/Build/Cesium/';</script>
+  <!-- Globe Module -->
+  <script src="js/cesium-globe.js"></script>
   <!-- Application JS -->
   <script src="js/app.js"></script>
 </body>

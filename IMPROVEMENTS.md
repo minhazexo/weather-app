@@ -1,295 +1,344 @@
-# GeoWeather Dashboard - Improvement Guide
+# 🚀 SkyLens Weather Dashboard — Improvement Roadmap
 
-## Project Overview
-A modern weather dashboard with glassmorphism UI, real-time geolocation, and weather data from OpenWeatherMap API.
-
----
-
-## Current Stack
-- **Frontend**: Vanilla HTML5, CSS3, JavaScript ES6+ (Modules)
-- **Maps**: Leaflet.js
-- **Weather API**: OpenWeatherMap
-- **Geocoding**: OpenStreetMap Nominatim
-- **Icons**: Font Awesome 6.4
-- **Fonts**: Outfit, JetBrains Mono
-- **PWA**: Service Worker, Manifest
+> A deep-dive analysis of every enhancement opportunity for the project: UI/UX, new sections, free APIs, performance, accessibility, and more.
 
 ---
 
-## Current Implementation Status ✅
+## 📊 Current State
 
-### Completed Improvements (v2.0)
+| Aspect | Status |
+|--------|--------|
+| **Framework** | Vanilla HTML/CSS/JS (IIFE modules), Tailwind CDN, Material Symbols |
+| **Weather API** | OpenWeatherMap free tier (current + 5-day forecast + air pollution) |
+| **Maps** | CesiumJS 3D globe with satellite/dark/street imagery |
+| **Geocoding** | Nominatim OpenStreetMap |
+| **Design** | Glassmorphism, dark/light theme, responsive |
+| **PWA** | Basic manifest + service worker |
+| **Deploy** | Static files (GitHub Pages compatible) |
 
-| Feature | Status | Files |
-|---------|--------|-------|
-| Config management | ✅ Done | `js/config.js` |
-| Weather caching | ✅ Done | `js/services/cache.js` |
-| Offline storage | ✅ Done | `js/services/cache.js` |
-| Retry logic | ✅ Done | `js/services/weather.js` |
-| State management | ✅ Done | `js/state.js` |
-| Toast notifications | ✅ Done | `js/components/ui.js` |
-| Search suggestions | ✅ Done | `js/components/ui.js` |
-| Temperature toggle | ✅ Done | `js/app.js` |
-| Dark/Light theme | ✅ Done | `js/state.js`, CSS |
-| Favorite locations | ✅ Done | `js/state.js` |
-| Skip link | ✅ Done | `index.html` |
-| ARIA labels | ✅ Done | `index.html` |
-| Focus states | ✅ Done | `css/styles.css` |
-| Mobile improvements | ✅ Done | CSS responsive |
-| Lazy map loading | ✅ Done | `js/components/map.js` |
-| SEO metadata | ✅ Done | `index.html` |
-| Open Graph tags | ✅ Done | `index.html` |
-| JSON-LD schema | ✅ Done | `index.html` |
-| PWA manifest | ✅ Done | `manifest.json` |
-| Service Worker | ✅ Done | `sw.js` |
+---
 
-### Current File Structure
+## 🎨 1. UI/UX Improvements
+
+### 1.1 Hero Section Enhancements
+- [ ] **Animated weather icon** — Use Lottie animations instead of Material Symbols for weather conditions (free via [LottieFiles](https://lottiefiles.com/))
+- [ ] **Dynamic weather background** — Show subtle animated particles (rain drops, snow, sun rays) behind the hero section based on conditions
+- [ ] **Temperature "feels like" comparison** — Show a small arrow indicating if it feels warmer/cooler than actual temp
+- [ ] **Weather description emoji** — Add contextual emoji next to the condition text (☀️, 🌧️, ❄️, etc.)
+- [ ] **Micro-interactions** — Add subtle hover effects on all metric cards (scale, glow, shadow transitions)
+
+### 1.2 Hourly Forecast Improvements
+- [ ] **Smooth horizontal scroll** — Add snap scrolling (`scroll-snap-type: x mandatory`) for native-feeling horizontal scroll
+- [ ] **Precipitation chance** — Show rain probability % under each hour
+- [ ] **Wind speed per hour** — Small wind indicator on each hourly card
+- [ ] **"Now" highlight** — Current hour card should be visually distinct (already partially done, enhance with glow effect)
+
+### 1.3 7-Day Forecast Enhancements
+- [ ] **Weather icons per day** — Add weather condition icons (currently only shows text)
+- [ ] **Precipitation %** — Rain/snow probability for each day
+- [ ] **Expandable day detail** — Click a day to expand and show: hourly breakdown, wind, humidity, sunrise/sunset
+- [ ] **Temperature range bar** — Visual gradient bar showing relative position of low→high (partially done)
+- [ ] **Day names** — Show full day names on desktop, abbreviations on mobile
+
+### 1.4 Metrics Grid Enhancements
+- [ ] **UV Index scale visualization** — Show a colored gradient bar (green→yellow→orange→red→purple) with a marker at current value
+- [ ] **Dew point metric** — Add dew point temperature (available from OWM)
+- [ ] **Wind gust speed** — Show wind gusts alongside average wind speed
+- [ ] **Moon phase** — Show current moon phase (new, crescent, half, gibbous, full) with icon
+- [ ] **Precipitation total** — Show 24h precipitation accumulation
+- [ ] **Card animations** — Staggered entrance animations for metric cards on load
+
+### 1.5 Layout & Navigation
+- [ ] **Sticky hero on desktop** — Keep the hero section visible while scrolling on large screens
+- [ ] **Smooth scroll sections** — Add anchor navigation between sections
+- [ ] **Collapsible sidebar on mobile** — Bottom sheet or swipe-up panel for forecast
+- [ ] **Skeleton loading states** — Replace spinner with content-shaped skeletons for each section
+- [ ] **Pull to refresh** — Mobile gesture support for refreshing weather data
+- [ ] **Keyboard navigation** — Full keyboard accessibility with visible focus indicators
+
+### 1.6 Visual Polish
+- [ ] **Consistent border-radius** — Ensure all cards use the same radius (currently mixed)
+- [ ] **Shadow depth system** — Define 3 shadow levels: subtle, medium, elevated
+- [ ] **Color consistency audit** — Ensure all text colors use the Tailwind token system
+- [ ] **Dark mode refinement** — Test all cards for proper contrast ratios (WCAG AA minimum)
+- [ ] **Reduced motion support** — Respect `prefers-reduced-motion` for all animations
+
+---
+
+## 🌍 2. New Sections & Features
+
+### 2.1 Weather Alerts Section ⚠️
+- [ ] **Severe weather alerts** — Fetch government weather alerts from OWM One Call API
+- [ ] **Alert cards** — Show active alerts with severity color coding (yellow/orange/red)
+- [ ] **Push notifications** — Use the Notification API for severe weather alerts
+- [ ] **Alert history** — Show past 24h alerts
+
+### 2.2 Historical Weather & Trends 📈
+- [ ] **7-day temperature graph** — Line chart showing high/low temps over the week
+- [ ] **Monthly climate averages** — Show how today compares to the monthly average
+- [ ] **Heat map calendar** — Color-coded calendar showing temperature trends over the past month
+- [ ] **Personal weather records** — Track "warmest day this year" etc. via localStorage
+
+### 2.3 Air Quality Deep Dive 🌬️
+- [ ] **AQI breakdown panel** — Show individual pollutant levels (PM2.5, PM10, O3, NO2, SO2, CO)
+- [ ] **Health recommendations** — Show WHO-based health advice per AQI level
+- [ ] **AQI trend graph** — Show 24h AQI trend
+- [ ] **Sensitive groups warning** — Highlight when conditions are dangerous for vulnerable people
+
+### 2.4 Astronomy Section 🌙
+- [ ] **Moon phase display** — Current phase with illumination percentage
+- [ ] **Moonrise/moonset times** — Available from Open-Meteo API (free, no key)
+- [ ] **Planetary visibility** — Which planets are visible tonight
+- [ ] **Star map placeholder** — Simple night sky view using star position data
+
+### 2.5 Outdoor Activity Index 🏃
+- [ ] **Running/cycling score** — Based on temperature, wind, humidity, UV, AQI
+- [ ] **Gardening index** — Best times to garden based on weather
+- [ ] **Outdoor comfort score** — Combined metric using all weather factors
+- [ ] **Best time today** — "Best hour for outdoor activity" recommendation
+
+### 2.6 Multi-City Comparison 🔀
+- [ ] **Compare panel** — Side-by-side comparison of 2-3 cities
+- [ ] **Quick switch** — Swipe between saved locations
+- [ ] **Comparison cards** — Temperature, humidity, wind comparison
+- [ ] **Travel planner** — "Which city is warmer this week?" feature
+
+### 2.7 Local Environment 🌿
+- [ ] **Pollen forecast** — Grass/tree/weed pollen levels (Open-Meteo provides this free)
+- [ ] **Fire index** — Fire weather index for affected regions
+- [ ] **Frost alerts** — When temperatures drop below freezing
+- [ ] **Heat index** — "Feels like" temperature accounting for humidity
+
+---
+
+## 🔌 3. Free API Integrations
+
+### 3.1 Open-Meteo (No API Key Required) ⭐ TOP PRIORITY
+| Feature | Endpoint | Free Tier |
+|---------|----------|-----------|
+| **Hourly forecast (16 days)** | `/v1/forecast` | ✅ Unlimited |
+| **UV Index hourly** | `uv_index` parameter | ✅ Unlimited |
+| **Pollen forecast** | `/v1/air-quality` pollen_data | ✅ Unlimited |
+| **Moon phase** | `daily.moon_phase` | ✅ Unlimited |
+| **Sunrise/Sunset** | `daily.sunrise,sunset` | ✅ Unlimited |
+| **Wind gusts** | `hourly.wind_gusts_10m` | ✅ Unlimited |
+| **Precipitation probability** | `hourly.precipitation_probability` | ✅ Unlimited |
+| **Dew point** | `hourly.dew_point_2m` | ✅ Unlimited |
+| **Historical weather** | `/v1/archive` | ✅ Unlimited |
+| **Climate normals** | `/v1/forecast` with past_days | ✅ Unlimited |
+| **Fire weather index** | `daily.fire_weather_index` | ✅ Unlimited |
+
+**Implementation:** Add as a parallel data source alongside OWM. No CORS issues, no API key needed.
+
 ```
-js/
-├── config.js              # Configuration (API keys, settings)
-├── state.js              # Central state management
-├── app.js                # Main application (refactored)
-├── services/
-│   ├── cache.js          # WeatherCache, OfflineStorage
-│   ├── weather.js        # Weather API service
-│   └── geocoding.js      # Geocoding & Geolocation services
-├── utils/
-│   ├── format.js         # Formatters, debounce, throttle
-│   └── validators.js     # Input sanitization, validation
-└── components/
-    ├── ui.js             # Toast notifications, suggestions
-    └── map.js            # Map component with lazy loading
+https://api.open-meteo.com/v1/forecast?
+  latitude=52.52&longitude=13.41&
+  current=temperature_2m,relative_humidity_2m,wind_speed_10m,uv_index&
+  hourly=temperature_2m,precipitation_probability,wind_gusts_10m,dew_point_2m,uv_index&
+  daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,moon_phase&
+  timezone=auto
 ```
 
----
+### 3.2 OpenWeatherMap (Already Using)
+| Enhancement | Endpoint | Free Tier |
+|-------------|----------|-----------|
+| **UV Index** | `/data/uvi` | ✅ 1000 calls/day |
+| **16-day forecast** | `/data/forecast/daily` | ✅ (not currently used) |
+| **Weather maps tiles** | `/data/map_*` | ✅ (already using for globe) |
 
-## Issues & Improvements
+### 3.3 GeoNames (Free)
+| Feature | Usage | Free Tier |
+|---------|-------|-----------|
+| **City search** | Alternative to Nominatim | ✅ 1000 requests/day |
+| **Postal code lookup** | Zip code weather | ✅ |
 
-### 1. JavaScript Architecture ✅ (COMPLETED)
-- API key moved to `js/config.js`
-- Caching implemented with 10-minute duration
-- Loading states handled in app.js
-- Retry logic with exponential backoff
+### 3.4 Sunrise-Sunset.org (Free, No Key)
+```
+https://api.sunrise-sunset.org/json?lat=52.52&lng=13.41
+```
+- Sunrise, sunset, solar noon, day length
+- Already using OWM for this, but can be a fallback
 
----
+### 3.5 OpenUV (Free Tier)
+- Real-time UV index with more detail
+- 50 requests/day free
+- Can supplement OWM UV data
 
-- Toast notifications for errors, success, warnings
-- Exponential backoff retry (max 3 retries)
-- Offline detection with localStorage fallback
-- Network status monitoring in state.js
+### 3.6 NWS Weather Alerts (US Only, Free)
+```
+https://api.weather.gov/alerts/active?point=40.7128,-74.0060
+```
+- Government severe weather alerts
+- No API key needed
+- US locations only
 
----
-
-- ✅ Temperature unit toggle (Celsius/Fahrenheit)
-- ✅ Debounced search with autocomplete suggestions
-- ⚠️ Hourly forecast - NOT YET IMPLEMENTED
-- ⚠️ Weather alerts/warnings display - NOT YET IMPLEMENTED
-- ✅ Theme toggle (dark/light)
-- ✅ Favorite locations
-
----
-
-- ✅ Lazy loading for map with IntersectionObserver
-- ✅ API caching to reduce redundant calls
-- ⚠️ Font Awesome optimization - NOT YET IMPLEMENTED
-- ⚠️ Image optimization - NOT YET IMPLEMENTED
-
----
-
-- ✅ ARIA labels on all interactive elements
-- ✅ Skip link for keyboard navigation
-- ✅ Focus-visible states for all interactive elements
-- ✅ Role attributes for status updates
-- ✅ `prefers-reduced-motion` support in CSS
+### 3.7 IPGeolocation (Fallback)
+- If geolocation denied, use IP-based location as fallback
+- Free tier: 1000 requests/day
+- `https://ipgeolocation.io/api/ipgeo?apiKey=KEY`
 
 ---
 
-- ✅ Touch-friendly button targets (44-48px)
-- ✅ `inputmode="search"` for mobile keyboards
-- ✅ Responsive layout for mobile
-- ✅ Mobile-optimized suggestions container
-- ✅ Leaflet touch gestures enabled
+## ⚡ 4. Performance Optimizations
+
+### 4.1 Loading Performance
+- [ ] **Lazy-load CesiumJS** — Only load when globe section is scrolled into view (IntersectionObserver)
+- [ ] **Critical CSS inline** — Inline above-the-fold styles in `<style>` tag
+- [ ] **Preconnect hints** — Add `<link rel="preconnect">` for API domains
+- [ ] **Image optimization** — Add WebP support for any static images
+- [ ] **Font loading** — Use `font-display: swap` (already done via Google Fonts)
+- [ ] **Service worker cache-first** — Already implemented, improve cache invalidation strategy
+
+### 4.2 Runtime Performance
+- [ ] **Debounce all API calls** — Ensure no duplicate requests (partially done)
+- [ ] **RequestAnimationFrame for animations** — Replace CSS animations with RAJS where needed
+- [ ] **Virtual scrolling** — If favorites list grows large
+- [ ] **Web Workers** — Offload data processing (forecast calculations, AQI processing)
+- [ ] **Memory management** — Clean up old cache entries on tab visibility change
+- [ ] **Throttle scroll handlers** — Add passive event listeners for scroll events
+
+### 4.3 API Performance
+- [ ] **Parallel API requests** — Fetch weather + AQI + forecast simultaneously with `Promise.all`
+- [ ] **Smart caching** — Cache by city name (not just coordinates) for better hit rate
+- [ ] **Background sync** — Use Background Sync API to refresh data when coming back online
+- [ ] **Stale-while-revalidate** — Show cached data immediately, refresh in background
 
 ---
 
-- ✅ Modular file structure implemented
-- ✅ Central state management in state.js
-- ✅ Separated services, utils, and components
+## ♿ 5. Accessibility (a11y)
+
+- [ ] **ARIA labels** — Audit all interactive elements for proper ARIA attributes
+- [ ] **Screen reader testing** — Test with VoiceOver/NVDA for all major flows
+- [ ] **Color contrast** — Ensure all text meets WCAG AA contrast ratio (4.5:1 minimum)
+- [ ] **Focus management** — Visible focus rings on all interactive elements
+- [ ] **Skip navigation** — Add "Skip to main content" link
+- [ ] **Semantic HTML** — Ensure proper heading hierarchy, landmark regions
+- [ ] **Touch targets** — Minimum 44x44px touch targets on mobile
+- [ ] **Motion preferences** — Respect `prefers-reduced-motion: reduce`
+- [ ] **High contrast mode** — Support `prefers-contrast: high`
+- [ ] **Announce updates** — Use `aria-live` regions for weather data updates
 
 ---
 
-- ✅ Open Graph tags (og:title, og:description, og:type, og:image)
-- ✅ Twitter Card metadata
-- ✅ JSON-LD structured data (WebApplication)
-- ⚠️ Sitemap - NOT YET IMPLEMENTED
+## 📱 6. PWA & Mobile Enhancements
+
+### 6.1 PWA Improvements
+- [ ] **Offline weather display** — Show last cached weather when offline
+- [ ] **App install prompt** — Add a custom "Install App" banner
+- [ ] **Update notification** — Notify user when new version is available
+- [ ] **Better manifest** — Add more icon sizes, screenshots, categories
+- [ ] **Background fetch** — Periodic weather updates even when app is closed
+
+### 6.2 Mobile UX
+- [ ] **Bottom sheet for details** — Instead of separate pages, use bottom sheet panels
+- [ ] **Swipe gestures** — Swipe between cities in favorites
+- [ ] **Haptic feedback** — Vibration on key interactions (theme toggle, refresh)
+- [ ] **Safe area support** — Proper padding for notch/dynamic island devices
+- [ ] **Orientation support** — Landscape mode layout for tablets
+- [ ] **Status bar theming** — Match status bar color to current section
 
 ---
 
-**Problems:**
-- No automated tests
-- No error boundary
-- No test coverage
+## 🔧 7. Code Quality & Architecture
 
-**Improvements (Future):**
-- Add Jest for unit tests
-- Add Cypress for E2E tests
-- Implement error boundaries in JS
+### 7.1 Code Organization
+- [ ] **Modular architecture** — Split `app.js` into focused modules (weather.js, ui.js, geolocation.js)
+- [ ] **TypeScript migration** — Add JSDoc types or migrate to TypeScript for better DX
+- [ ] **CSS custom properties** — Define a design token system for colors, spacing, shadows
+- [ ] **State management** — Create a simple reactive state system (Proxy-based)
+- [ ] **Event bus** — Decouple components with a lightweight event system
 
----
+### 7.2 Testing
+- [ ] **Unit tests** — Add tests for utility functions (temperature conversion, date formatting)
+- [ ] **Integration tests** — Test API data flow
+- [ ] **Visual regression** — Screenshot testing for UI components
+- [ ] **Lighthouse audit** — Regular performance, accessibility, SEO audits
 
-### 10. Modern Features to Add
-
-| Feature | Priority | Status | Description |
-|---------|----------|--------|-------------|
-| Dark/Light Toggle | High | ✅ Done | Theme switcher with localStorage |
-| Favorite Locations | Medium | ✅ Done | Save locations to localStorage |
-| Weather Maps Overlay | Medium | ⚠️ Not Started | Rain/radar layer on map |
-| Hourly Forecast | Medium | ⚠️ Not Started | 24-hour scrollable forecast |
-| Air Quality Index | Low | ⚠️ Not Started | AQI display |
-| Weather Notifications | Low | ⚠️ Not Started | Push notifications for alerts |
+### 7.3 Developer Experience
+- [ ] **ESLint configuration** — Add linting rules
+- [ ] **Prettier formatting** — Consistent code style
+- [ ] **VS Code settings** — Recommended extensions and settings
+- [ ] **Contribution guidelines** — CONTRIBUTING.md for open source
 
 ---
 
-### 11. Security Improvements ✅ (IMPLEMENTED)
+## 🎯 8. Feature Priority Matrix
 
-- ✅ Input sanitization in `js/utils/validators.js`
-- ✅ Rate limiter utility implemented
-- ⚠️ API key protection - still hardcoded (consider environment variables)
-- ⚠️ CSP headers - NOT YET IMPLEMENTED
-- ⚠️ HTTPS enforcement - NOT YET IMPLEMENTED
-
-- ✅ PWA manifest implemented (`manifest.json`)
-- ✅ Service worker implemented (`sw.js`)
-- ✅ Offline API caching in service worker
-- ⚠️ Webpack/rollup bundling - NOT YET IMPLEMENTED
-- ⚠️ Production build optimizations - NOT YET IMPLEMENTED
-
----
-
-## Remaining Work (v2.1+)
-
-### High Priority
-- [ ] Add hourly forecast carousel
-- [ ] Add weather alerts/banners display
-- [ ] Implement AQI (Air Quality Index) display
-- [ ] Add sitemap.xml for SEO
-
-### Medium Priority
-- [ ] Add weather maps overlay (rain/radar layer)
-- [ ] Implement push notifications
-- [ ] Add weather video backgrounds
-- [ ] Implement voice search
-
-### Low Priority
-- [ ] Add more detailed hourly forecast (48-hour)
-- [ ] Implement weather comparison between locations
-- [ ] Add weather history charts
-- [ ] Implement widgets for other platforms
+| Priority | Feature | Effort | Impact | Free? |
+|----------|---------|--------|--------|-------|
+| 🔴 P0 | Open-Meteo integration (UV, pollen, moon, 16-day) | Medium | High | ✅ |
+| 🔴 P0 | Skeleton loading states | Low | High | ✅ |
+| 🔴 P0 | Weather alerts section | Medium | High | ✅ |
+| 🟠 P1 | Hourly precipitation % | Low | Medium | ✅ |
+| 🟠 P1 | AQI breakdown panel | Medium | Medium | ✅ |
+| 🟠 P1 | Moon phase display | Low | Medium | ✅ |
+| 🟠 P1 | Lottie weather animations | Medium | High | ✅ |
+| 🟡 P2 | 7-day forecast icons + expand | Medium | Medium | ✅ |
+| 🟡 P2 | Multi-city comparison | High | Medium | ✅ |
+| 🟡 P2 | Historical weather trends | High | Medium | ✅ |
+| 🟡 P2 | Outdoor activity index | Medium | Low | ✅ |
+| 🟢 P3 | TypeScript migration | High | Medium | ✅ |
+| 🟢 P3 | E2E testing | High | Low | ✅ |
+| 🟢 P3 | Modular architecture refactor | High | Medium | ✅ |
 
 ---
 
-## Additional Improvements to Add
+## 🧩 9. Specific Code Improvements
 
-### JavaScript Enhancements
-- Error boundary component for graceful error handling
-- Performance monitoring with Web Vitals
-- Analytics integration (optional)
-- Lazy load non-critical modules
-- Implement Virtual DOM-like updates for better rendering
+### 9.1 Current Bugs / Issues
+1. **Duplicate light theme CSS** — Was partially fixed, but verify no leftover duplicates
+2. **CesiumJS load time** — 2MB+ library, should lazy-load
+3. **No error boundary** — If OWM API fails, UI shows broken state
+4. **Hardcoded API key** — `c41ac4dcbbb1459860ff8f6d9d65096c` in client-side code (security risk)
+5. **No rate limiting** — User could spam refresh and hit OWM limits
+6. **Service worker cache invalidation** — No versioned cache names for cache busting
 
-### CSS Enhancements
-- CSS modular architecture (split into files)
-- Remove duplicate rules in styles.css
-- Add more CSS custom properties
-- Implement container queries
-- Add print stylesheet
+### 9.2 Missing Error Handling
+- [ ] Geocoding API failure (Nominatim)
+- [ ] AQI data unavailable
+- [ ] CesiumJS CDN timeout
+- [ ] Invalid city search results
+- [ ] Network timeout during initial load
 
-### API Enhancements
-- Add more weather data (uvIndex more reliable, pollen, etc.)
-- Implement webhook for severe weather alerts
-- Add multi-language support
-- Add weather forecast for 7+ days
-
-### PWA Enhancements
-- Add push notification service worker
-- Implement background sync for offline actions
-- Add app install prompt
-- Implement share API for sharing weather
-
-### Testing
-- Add Jest unit tests
-- Add Cypress E2E tests
-- Add Lighthouse CI checks
-- Implement visual regression testing
-
-### Documentation
-- Add CONTRIBUTING.md
-- Add CODE_OF_CONDUCT.md
-- Add API documentation
-- Add deployment guide
+### 9.3 Missing Features in Current Code
+- [ ] `mobileRadarBtn` — Click handler not implemented
+- [ ] `mobileForecastBtn` — Click handler not implemented
+- [ ] `mobileAlertsBtn` — Click handler not implemented (alerts section doesn't exist yet)
+- [ ] Wind direction compass — Only shows arrow, no compass rose visualization
+- [ ] Temperature unit toggle — Doesn't persist properly on page reload (partially done via localStorage)
 
 ---
 
-## Quick Wins (Done)
+## 📋 10. Quick Wins (Can Implement Now)
 
-1. ✅ **Fix API key** - Moved to config.js
-2. ✅ **Add error toasts** - User-friendly messages
-3. ✅ **Add loading states** - Loading indicator
-4. ✅ **Fix accessibility** - ARIA labels, skip links, focus states
-5. ✅ **Add temperature toggle** - C/F switch with localStorage
-6. ✅ **Improve mobile** - Touch targets, keyboard inputmode
-7. ✅ **Add theme toggle** - Dark/light mode
-8. ✅ **Add favorites** - Save locations to localStorage
-9. ✅ **Add PWA support** - Manifest and service worker
-
----
-
-## Files Reference (v2.0)
-
-| File | Lines | Purpose | Status |
-|------|-------|---------|--------|
-| `index.html` | ~290 | Main HTML structure | Updated |
-| `styles.css` | ~2200+ | All styling + responsive | Updated |
-| `js/config.js` | NEW | Configuration | New |
-| `js/state.js` | NEW | Central state management | New |
-| `js/app.js` | ~350 | Main application | Refactored |
-| `js/services/cache.js` | NEW | Caching layer | New |
-| `js/services/weather.js` | NEW | Weather API | New |
-| `js/services/geocoding.js` | NEW | Geocoding services | New |
-| `js/utils/format.js` | NEW | Formatters | New |
-| `js/utils/validators.js` | NEW | Input validation | New |
-| `js/components/ui.js` | NEW | UI components | New |
-| `js/components/map.js` | NEW | Map component | New |
-| `manifest.json` | NEW | PWA manifest | New |
-| `sw.js` | NEW | Service worker | New |
-| `js/weather.js` | 195 | Legacy (can be removed) | Legacy |
-| `js/geolocation.js` | 62 | Legacy (can be removed) | Legacy |
-| `js/map.js` | 143 | Legacy (can be removed) | Legacy |
+| # | Improvement | Time | Impact |
+|---|-------------|------|--------|
+| 1 | Add Open-Meteo as parallel API for UV + pollen + moon | 30 min | High |
+| 2 | Add skeleton loading for all sections | 20 min | High |
+| 3 | Add weather emoji to condition text | 5 min | Medium |
+| 4 | Add precipitation % to hourly forecast | 15 min | Medium |
+| 5 | Add moon phase card to metrics grid | 15 min | Medium |
+| 6 | Implement mobile bottom nav handlers | 10 min | Medium |
+| 7 | Add "feels like" comparison arrow | 5 min | Low |
+| 8 | Add `prefers-reduced-motion` support | 10 min | Medium |
+| 9 | Fix forecast day icons (currently missing) | 10 min | Medium |
+| 10 | Add error boundary with retry UI | 20 min | High |
 
 ---
 
-## Recommended Order of Implementation
+## 🔗 11. Useful Free Resources
 
-1. **Phase 1**: Security & Error Handling (Week 1) - ✅ DONE
-2. **Phase 2**: UX Improvements (Week 2) - ✅ DONE
-3. **Phase 3**: Performance (Week 3) - ✅ PARTIALLY DONE
-4. **Phase 4**: Advanced Features (Week 4) - IN PROGRESS
-5. **Phase 5**: Testing & Polish (Week 5) - NOT STARTED
-
----
-
-## Version History
-
-| Version | Date | Changes |
-|---------|------|---------|
-| v1.0 | Initial | Original codebase |
-| v2.0 | Current | Complete refactor with modular JS, PWA, accessibility, theme toggle, favorites |
+| Resource | URL | Use Case |
+|----------|-----|----------|
+| Open-Meteo API | https://open-meteo.com | Weather, UV, pollen, moon, forecast |
+| LottieFiles | https://lottiefiles.com | Weather animations (free tier) |
+| NOAA Weather Alerts | https://weather.gov/alerts | US weather alerts |
+| Open-Meteo Historical | https://open-meteo.com/en/docs/historical-weather-api | Past weather data |
+| Tailwind CSS | https://tailwindcss.com | Already using (CDN) |
+| Inter font | Google Fonts | Already using |
+| Material Symbols | Google Fonts | Already using |
+| CesiumJS Ion | https://cesium.com/ion | Globe (already configured) |
 
 ---
 
-## Notes
-
-- Legacy files (`weather.js`, `geolocation.js`, `map.js`) can be removed once migration is complete
-- Consider setting up a build tool (Vite/Webpack) for better optimization
-- Add proper error boundaries for production use
-- Consider adding proper API key management (environment variables)
+*Last updated: August 2026*

@@ -1,6 +1,7 @@
 export const CONFIG = {
   apiKey: 'c41ac4dcbbb1459860ff8f6d9d65096c',
   apiBaseUrl: 'https://api.openweathermap.org/data/2.5',
+  openMeteoUrl: 'https://api.open-meteo.com/v1/forecast',
   cacheDuration: 10 * 60 * 1000,
   nominatimUrl: 'https://nominatim.openstreetmap.org',
   mapDefaults: {
