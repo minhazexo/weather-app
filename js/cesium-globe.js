@@ -1,6 +1,13 @@
 /**
  * SkyLens CesiumJS 3D Weather Globe
  * Uses only UrlTemplateImageryProvider with CORS-safe free tile sources.
+ *
+ * NOTE: server.arcgisonline.com / services.arcgisonline.com currently answer
+ * HTTP 403 (even their ?f=json metadata endpoint) from many networks, and
+ * their error responses carry no CORS headers — so browsers surface this as
+ * a CORS failure on top of the 403. Satellite tiles therefore come from the
+ * Esri Wayback host (wayback.maptiles.arcgis.com), which serves the same
+ * World_Imagery and sends `Access-Control-Allow-Origin: *`.
  */
 
 var CesiumGlobe = (function () {
@@ -9,26 +16,47 @@ var CesiumGlobe = (function () {
   var viewer = null;
   var initialized = false;
   var currentMarker = null;
-  var activeBaseLayer = 'cartodb-dark';
+  var activeBaseLayer = 'satellite';
   var activeWeatherLayers = {};
   var initInProgress = false;
 
-  // Base imagery tile sources - all use UrlTemplateImageryProvider for reliability
+  // Auto-fallback when a base layer's tiles keep failing (e.g. provider 403s)
+  var baseLayerErrorCount = 0;
+  var baseLayerFallbackDone = false;
+  var baseLayerFailureHandler = null;
+  var BASE_LAYER_ERROR_THRESHOLD = 10;
+
+  // Base imagery tile sources - UrlTemplateImageryProvider for free tiles,
+  // IonImageryProvider (via Cesium Ion token) for Cesium World Imagery.
+  // Order = panel order in #baseLayerOptions. Satellite first = default.
   var BASE_LAYERS = {
-    'cartodb-dark': {
-      name: 'Dark',
-      icon: 'dark_mode',
-      url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-      credit: '\u00A9 CARTO',
-      subdomains: ['a', 'b', 'c', 'd']
-    },
     satellite: {
       name: 'Satellite',
       icon: 'satellite',
-      // ESRI World Imagery tiles - free, CORS-safe, no API key needed
-      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      // Esri World Imagery via the Wayback host: same imagery as
+      // server.arcgisonline.com (which currently 403s), but reachable and
+      // CORS-safe (`Access-Control-Allow-Origin: *`), no API key needed.
+      // Unversioned tile path 301-redirects to the latest release; XHR
+      // follows it transparently.
+      url: 'https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
       credit: '\u00A9 Esri',
       subdomains: []
+    },
+    'cesium-ion': {
+      name: 'Cesium Ion',
+      icon: 'public',
+      isIon: true,
+      credit: '\u00A9 Cesium ion'
+    },
+    'cartodb-dark': {
+      name: 'Dark',
+      icon: 'dark_mode',
+      // NOTE: {r} removed — that's Leaflet-only (@2x retina). Cesium's
+      // UrlTemplateImageryProvider leaves {r} literal, producing bad URLs
+      // like .../10{r}.png which CARTO rejects. No API key needed.
+      url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+      credit: '\u00A9 CARTO',
+      subdomains: ['a', 'b', 'c', 'd']
     },
     standard: {
       name: 'Streets',
@@ -128,7 +156,7 @@ var CesiumGlobe = (function () {
 
       // Set Ion token for potential future use
       try {
-        Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJlYWE1OWUxNy1mMWZiLTQzYjYtYTQ0OS1kMWFjYmFkNjc5YzciLCJpZCI6NDQzNDEsImlhdCI6MTYxMzY2NzY0OH0.gn0FXMuFRoc6mLiq4BZQOu5dNowJFxCCHN0HfvoeYEA';
+        Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6Ii1NWUFiT216REsyR0lwZFoiLCJqdGkiOiJlYzQ5ZWVmMC05MDdjLTQ1NDEtYjg4ZS00NTBhNmEyODI4YWQiLCJpZCI6NTE4MDU3LCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3OTE0ODEzNzN9.enzIRNZ5aTiSl8cw_nvfErCJfgsXyRz6aE4nqBHmHgs';
       } catch (e) { /* token not critical */ }
 
       // Create viewer with default imagery first, then replace it
@@ -170,7 +198,9 @@ var CesiumGlobe = (function () {
       viewer.scene.screenSpaceCameraController.enableTilt = true;
       viewer.scene.screenSpaceCameraController.enableRotate = true;
 
-      // Add satellite imagery using UrlTemplateImageryProvider (CORS-safe)
+      // Default to Esri Wayback satellite (free, CORS-safe, no key).
+      // Falls back to OSM standard if tiles fail. Cesium Ion stays
+      // selectable in the layer panel and uses the Ion token.
       addBaseLayer('satellite');
 
       // Force render
@@ -206,10 +236,7 @@ var CesiumGlobe = (function () {
   /**
    * Add a base imagery layer
    */
-  function addBaseLayer(type) {
-    if (!viewer) return;
-
-    // Remove existing non-weather layers
+  function removeNonWeatherLayers() {
     var layersToRemove = [];
     for (var i = 0; i < viewer.imageryLayers.length; i++) {
       var layer = viewer.imageryLayers.get(i);
@@ -227,15 +254,93 @@ var CesiumGlobe = (function () {
     for (var j = 0; j < layersToRemove.length; j++) {
       viewer.imageryLayers.remove(layersToRemove[j]);
     }
+  }
+
+  function addIonBaseLayer() {
+    if (!viewer) return;
+    removeNonWeatherLayers();
+
+    // Mark active synchronously so the layer panel + error watcher stay in sync
+    activeBaseLayer = 'cesium-ion';
+    baseLayerErrorCount = 0;
+    baseLayerFallbackDone = false;
+    console.log('CesiumGlobe: Loading Cesium Ion World Imagery...');
+
+    function onIonProvider(provider) {
+      // User may have switched layers while Ion was loading
+      if (activeBaseLayer !== 'cesium-ion') return;
+      try {
+        var layer = viewer.imageryLayers.addImageryProvider(provider);
+        layer.alpha = 1.0;
+        console.log('CesiumGlobe: Added base layer: cesium-ion');
+        watchBaseLayerErrors(layer, 'cesium-ion');
+        viewer.scene.requestRender();
+      } catch (e) {
+        console.error('CesiumGlobe: Failed to add Ion layer:', e && e.message);
+        addBaseLayer('standard');
+        if (typeof baseLayerFailureHandler === 'function') {
+          try { baseLayerFailureHandler('cesium-ion'); } catch (err) {}
+        }
+      }
+    }
+
+    function onIonError(err) {
+      console.error('CesiumGlobe: Ion imagery failed:', err && err.message);
+      if (activeBaseLayer === 'cesium-ion') {
+        addBaseLayer('standard');
+        if (typeof baseLayerFailureHandler === 'function') {
+          try { baseLayerFailureHandler('cesium-ion'); } catch (e) {}
+        }
+      }
+    }
+
+    try {
+      // Preferred modern API (Cesium 1.104+): uses Ion.defaultAccessToken
+      if (typeof Cesium.createWorldImageryAsync === 'function') {
+        Cesium.createWorldImageryAsync().then(onIonProvider, onIonError);
+        return;
+      }
+      // Fallback: explicit Ion asset (2 = Cesium World Imagery)
+      if (Cesium.IonImageryProvider && typeof Cesium.IonImageryProvider.fromAssetId === 'function') {
+        Cesium.IonImageryProvider.fromAssetId(2).then(onIonProvider, onIonError);
+        return;
+      }
+      // Legacy sync API
+      var legacy = new Cesium.IonImageryProvider({ assetId: 2 });
+      onIonProvider(legacy);
+    } catch (e) {
+      onIonError(e);
+    }
+  }
+
+  function addBaseLayer(type) {
+    if (!viewer) return;
+
+    // Ion is async — handled separately
+    if (type === 'cesium-ion') {
+      addIonBaseLayer();
+      return;
+    }
+
+    removeNonWeatherLayers();
 
     var config = BASE_LAYERS[type];
     if (!config) return;
 
     try {
+      // Fresh error budget for the newly selected layer
+      baseLayerErrorCount = 0;
+      baseLayerFallbackDone = false;
+
       var layer = viewer.imageryLayers.addImageryProvider(createImageryProvider(config));
       layer.alpha = 1.0;
       activeBaseLayer = type;
       console.log('CesiumGlobe: Added base layer:', type);
+
+      // If this provider's tiles keep failing (403s, outages, CORS blocks),
+      // stop hammering it and fall back to the reliable OSM standard base
+      // instead of spamming the console and leaving a blank globe.
+      watchBaseLayerErrors(layer, type);
     } catch (e) {
       console.error('CesiumGlobe: Failed to add base layer ' + type + ':', e.message);
       // Fallback: try default OSM
@@ -250,6 +355,41 @@ var CesiumGlobe = (function () {
         }
       }
     }
+  }
+
+  /**
+   * Watch a base layer for repeated tile failures and fall back to the
+   * reliable OSM standard base when the provider is unusable (e.g. Esri 403s,
+   * Ion quota, CARTO errors). OSM is the final fallback — never fall back
+   * *to* a broken provider.
+   */
+  function watchBaseLayerErrors(layer, type) {
+    if (!layer || !layer.errorEvent) return;
+    // OSM standard is the final fallback itself — nothing to fall back to
+    if (type === 'standard') return;
+
+    try {
+      layer.errorEvent.addEventListener(function () {
+        // Ignore errors for layers that are no longer active
+        if (activeBaseLayer !== type || baseLayerFallbackDone) return;
+        baseLayerErrorCount++;
+        if (baseLayerErrorCount >= BASE_LAYER_ERROR_THRESHOLD) {
+          baseLayerFallbackDone = true;
+          console.warn(
+            'CesiumGlobe: Base layer "' + type + '" failed ' +
+            baseLayerErrorCount + ' tiles — falling back to standard map.'
+          );
+          addBaseLayer('standard');
+          if (typeof baseLayerFailureHandler === 'function') {
+            try { baseLayerFailureHandler(type); } catch (e) {}
+          }
+        }
+      });
+    } catch (e) { /* errorEvent unavailable — skip watching */ }
+  }
+
+  function setBaseLayerFailureHandler(fn) {
+    baseLayerFailureHandler = (typeof fn === 'function') ? fn : null;
   }
 
   /**
@@ -418,7 +558,8 @@ var CesiumGlobe = (function () {
     flyToLocation: flyToLocation, flyToUserLocation: flyToUserLocation, resetCamera: resetCamera,
     zoomIn: zoomIn, zoomOut: zoomOut, tiltCamera: tiltCamera, resetOrientation: resetOrientation,
     setMarker: setMarker, removeMarker: removeMarker,
-    addBaseLayer: addBaseLayer, toggleWeatherLayer: toggleWeatherLayer,
+    addBaseLayer: addBaseLayer, setBaseLayerFailureHandler: setBaseLayerFailureHandler,
+    toggleWeatherLayer: toggleWeatherLayer,
     isWeatherLayerActive: isWeatherLayerActive, setWeatherLayerOpacity: setWeatherLayerOpacity,
     getCameraPosition: getCameraPosition, getWeatherLayerTypes: getWeatherLayerTypes,
     getBaseLayerTypes: getBaseLayerTypes, getActiveBaseLayer: getActiveBaseLayer

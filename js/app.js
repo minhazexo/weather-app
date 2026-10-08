@@ -326,6 +326,16 @@
           appState.globeReady = true;
           if (elements.globeLoading) elements.globeLoading.classList.add('hidden');
           if (elements.globeStatusText) elements.globeStatusText.textContent = 'Globe ready';
+          // If a base layer's tiles keep failing (e.g. satellite provider
+          // 403s), CesiumGlobe auto-switches to the OSM standard base — reflect it
+          // in the status pill and layer panel instead of silently changing.
+          if (typeof CesiumGlobe.setBaseLayerFailureHandler === 'function') {
+            CesiumGlobe.setBaseLayerFailureHandler(function (failedType) {
+              if (elements.globeStatusText) elements.globeStatusText.textContent = (failedType === 'cesium-ion' ? 'Cesium Ion unavailable — using Streets map' : failedType + ' unavailable — using Streets map');
+              buildLayerPanel();
+              console.warn('Globe base layer "' + failedType + '" unavailable, fell back to standard map.');
+            });
+          }
           buildLayerPanel();
           console.log('CesiumGlobe: Globe ready!');
           // Immediately fly to current location if available
@@ -363,11 +373,12 @@
   }
 
   function buildLayerPanel() {
-    // Base layers
+    // Base layers — default selected in #baseLayerOptions is Satellite.
     const baseLayers = CesiumGlobe.getBaseLayerTypes();
+    const activeId = CesiumGlobe.getActiveBaseLayer() || 'satellite';
     elements.baseLayerOptions.innerHTML = '';
     baseLayers.forEach(layer => {
-      const isActive = CesiumGlobe.getActiveBaseLayer() === layer.id;
+      const isActive = activeId === layer.id;
       const btn = document.createElement('button');
       btn.className = `w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'bg-primary/15 text-primary' : 'text-on-surface-variant hover:bg-white/5 hover:text-on-surface'}`;
       btn.innerHTML = `

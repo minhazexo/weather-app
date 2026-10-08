@@ -1,0 +1,10 @@
+node_modules/
+dist/
+build/
+.bun/
+bun.lockb
+*.log
+.DS_Store
+Thumbs.db
+.env
+.env.local

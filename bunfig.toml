@@ -1,0 +1,6 @@
+[install]
+# Use the fastest registry responses; fall back gracefully
+auto = "fallback"
+
+[serve]
+port = 8000

@@ -1,0 +1,12 @@
+{
+  "name": "skylens-weather-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "SkyLens Weather Dashboard - real-time weather with 3D globe (Bun-powered static server)",
+  "scripts": {
+    "dev": "bun --hot ./server.ts --open",
+    "start": "bun ./server.ts",
+    "preview": "bun ./server.ts --open"
+  }
+}
