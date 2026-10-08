@@ -2,7 +2,9 @@ class WeatherManager {
     constructor() {
         this.weatherData = null;
         this.forecastData = null;
-        this.apiKey = 'c41ac4dcbbb1459860ff8f6d9d65096c'; // 🔑 Your API key
+        // Legacy unused module — kept for reference. Live app uses /api/weather
+        // proxy (OWM_API_KEY server-side). Do NOT put keys here.
+        this.apiKey = '';
     }
 
     // ✅ Fetch real weather data

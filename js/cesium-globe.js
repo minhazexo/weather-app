@@ -67,39 +67,57 @@ var CesiumGlobe = (function () {
     }
   };
 
-  // Weather tile layers
+  // Weather tile layers — same-origin proxy, OWM key stays server-side.
+  // Cesium substitutes {z}/{x}/{y} before requesting /api/tiles.
   var WEATHER_LAYERS = {
     clouds: {
       name: 'Clouds',
       icon: 'cloud',
-      url: 'https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=c41ac4dcbbb1459860ff8f6d9d65096c',
+      url: '/api/tiles?layer=clouds_new&z={z}&x={x}&y={y}',
       opacity: 0.5
     },
     precipitation: {
       name: 'Precipitation',
       icon: 'rainy',
-      url: 'https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=c41ac4dcbbb1459860ff8f6d9d65096c',
+      url: '/api/tiles?layer=precipitation_new&z={z}&x={x}&y={y}',
       opacity: 0.6
     },
     temperature: {
       name: 'Temperature',
       icon: 'thermostat',
-      url: 'https://tile.openweathermap.org/map/temp_new/{z}/{x}/{y}.png?appid=c41ac4dcbbb1459860ff8f6d9d65096c',
+      url: '/api/tiles?layer=temp_new&z={z}&x={x}&y={y}',
       opacity: 0.5
     },
     wind: {
       name: 'Wind',
       icon: 'air',
-      url: 'https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=c41ac4dcbbb1459860ff8f6d9d65096c',
+      url: '/api/tiles?layer=wind_new&z={z}&x={x}&y={y}',
       opacity: 0.5
     },
     pressure: {
       name: 'Pressure',
       icon: 'compress',
-      url: 'https://tile.openweathermap.org/map/pressure_new/{z}/{x}/{y}.png?appid=c41ac4dcbbb1459860ff8f6d9d65096c',
+      url: '/api/tiles?layer=pressure_new&z={z}&x={x}&y={y}',
       opacity: 0.4
     }
   };
+
+  // Ion token: loaded once from /api/config (env, not git).
+  // Satellite (default) needs no token, so globe works even without it.
+  var ionTokenPromise = null;
+  function ensureIonToken() {
+    if (Cesium.Ion.defaultAccessToken) return Promise.resolve(Cesium.Ion.defaultAccessToken);
+    if (!ionTokenPromise) {
+      ionTokenPromise = fetch('/api/config').then(function (r) { return r.json(); }).then(function (j) {
+        if (j && j.cesiumToken) {
+          try { Cesium.Ion.defaultAccessToken = j.cesiumToken; } catch (e) {}
+          return j.cesiumToken;
+        }
+        return '';
+      }).catch(function () { return ''; });
+    }
+    return ionTokenPromise;
+  }
 
   /**
    * Create a tile imagery provider from a layer config
@@ -154,10 +172,9 @@ var CesiumGlobe = (function () {
       container.style.position = 'relative';
       container.style.overflow = 'hidden';
 
-      // Set Ion token for potential future use
-      try {
-        Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6Ii1NWUFiT216REsyR0lwZFoiLCJqdGkiOiJlYzQ5ZWVmMC05MDdjLTQ1NDEtYjg4ZS00NTBhNmEyODI4YWQiLCJpZCI6NTE4MDU3LCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3OTE0ODEzNzN9.enzIRNZ5aTiSl8cw_nvfErCJfgsXyRz6aE4nqBHmHgs';
-      } catch (e) { /* token not critical */ }
+      // Pre-fetch Ion token (env, not git) so the Ion layer is ready if selected.
+      // Satellite default needs no token — globe works even when unset.
+      try { ensureIonToken(); } catch (e) {}
 
       // Create viewer with default imagery first, then replace it
       // This ensures the viewer always has something to show
@@ -295,19 +312,28 @@ var CesiumGlobe = (function () {
     }
 
     try {
-      // Preferred modern API (Cesium 1.104+): uses Ion.defaultAccessToken
-      if (typeof Cesium.createWorldImageryAsync === 'function') {
-        Cesium.createWorldImageryAsync().then(onIonProvider, onIonError);
-        return;
-      }
-      // Fallback: explicit Ion asset (2 = Cesium World Imagery)
-      if (Cesium.IonImageryProvider && typeof Cesium.IonImageryProvider.fromAssetId === 'function') {
-        Cesium.IonImageryProvider.fromAssetId(2).then(onIonProvider, onIonError);
-        return;
-      }
-      // Legacy sync API
-      var legacy = new Cesium.IonImageryProvider({ assetId: 2 });
-      onIonProvider(legacy);
+      // Token comes from /api/config (env, not git). Wait for it first —
+      // without a token Ion returns 401 and we fall back to Streets.
+      ensureIonToken().then(function () {
+        if (activeBaseLayer !== 'cesium-ion') return;
+        if (!Cesium.Ion.defaultAccessToken) {
+          onIonError(new Error('Missing CESIUM_ION_TOKEN — set it in .env / Vercel env'));
+          return;
+        }
+        // Preferred modern API (Cesium 1.104+): uses Ion.defaultAccessToken
+        if (typeof Cesium.createWorldImageryAsync === 'function') {
+          Cesium.createWorldImageryAsync().then(onIonProvider, onIonError);
+          return;
+        }
+        // Fallback: explicit Ion asset (2 = Cesium World Imagery)
+        if (Cesium.IonImageryProvider && typeof Cesium.IonImageryProvider.fromAssetId === 'function') {
+          Cesium.IonImageryProvider.fromAssetId(2).then(onIonProvider, onIonError);
+          return;
+        }
+        // Legacy sync API
+        var legacy = new Cesium.IonImageryProvider({ assetId: 2 });
+        onIonProvider(legacy);
+      }, onIonError);
     } catch (e) {
       onIonError(e);
     }

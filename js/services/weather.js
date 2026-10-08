@@ -4,7 +4,8 @@ import { formatTime } from '../utils/format.js';
 
 export class WeatherService {
   constructor() {
-    this.apiKey = CONFIG.apiKey;
+    // Unused legacy module — live app uses /api/weather proxy. No client key.
+    this.apiKey = '';
     this.cache = new WeatherCache();
     this.offlineStorage = new OfflineStorage();
   }

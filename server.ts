@@ -85,6 +85,69 @@ async function serveFile(
   return new Response(file, { headers });
 }
 
+const OWM_BASE = "https://api.openweathermap.org/data/2.5";
+const TILE_LAYERS = new Set(["clouds_new", "precipitation_new", "temp_new", "wind_new", "pressure_new"]);
+
+function json(data: unknown, status = 200, cache = "public, s-maxage=600"): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": cache },
+  });
+}
+
+async function handleApi(_req: Request, url: URL): Promise<Response> {
+  // GET /api/config -> { cesiumToken } (token hidden from git, not from browser)
+  if (url.pathname === "/api/config") {
+    return json({ cesiumToken: process.env.CESIUM_ION_TOKEN ?? "" }, 200, "public, s-maxage=3600");
+  }
+
+  // GET /api/weather?lat=..&lon=.. -> { current, forecast, aqi }
+  if (url.pathname === "/api/weather") {
+    const lat = Number(url.searchParams.get("lat"));
+    const lon = Number(url.searchParams.get("lon"));
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      return json({ error: "Invalid lat/lon" }, 400, "no-store");
+    }
+    const key = process.env.OWM_API_KEY;
+    if (!key) return json({ error: "Server missing OWM_API_KEY (see .env.example)" }, 500, "no-store");
+    try {
+      const [curR, foreR, aqiR] = await Promise.all([
+        fetch(`${OWM_BASE}/weather?lat=${lat}&lon=${lon}&appid=${key}&units=metric`),
+        fetch(`${OWM_BASE}/forecast?lat=${lat}&lon=${lon}&appid=${key}&units=metric`),
+        fetch(`${OWM_BASE}/air_pollution?lat=${lat}&lon=${lon}&appid=${key}`),
+      ]);
+      if (!curR.ok) return json({ error: `OWM weather ${curR.status}` }, curR.status, "no-store");
+      const current = await curR.json();
+      const forecast = foreR.ok ? await foreR.json().catch(() => null) : null;
+      const aqi = aqiR.ok ? await aqiR.json().catch(() => null) : null;
+      return json({ current, forecast, aqi });
+    } catch (err) {
+      return json({ error: "Upstream OWM fetch failed" }, 502, "no-store");
+    }
+  }
+
+  // GET /api/tiles?layer=..&z=..&x=..&y=.. -> image/png
+  if (url.pathname === "/api/tiles") {
+    const layer = url.searchParams.get("layer") ?? "";
+    const z = Number(url.searchParams.get("z"));
+    const x = Number(url.searchParams.get("x"));
+    const y = Number(url.searchParams.get("y"));
+    if (!TILE_LAYERS.has(layer) || !Number.isInteger(z) || !Number.isInteger(x) || !Number.isInteger(y)) {
+      return json({ error: "Invalid tile params" }, 400, "no-store");
+    }
+    const key = process.env.OWM_API_KEY;
+    if (!key) return json({ error: "Server missing OWM_API_KEY" }, 500, "no-store");
+    const upstream = await fetch(`https://tile.openweathermap.org/map/${layer}/${z}/${x}/${y}.png?appid=${key}`);
+    if (!upstream.ok) return json({ error: `Tile upstream ${upstream.status}` }, upstream.status, "no-store");
+    const buf = await upstream.arrayBuffer();
+    return new Response(buf, {
+      headers: { "Content-Type": "image/png", "Cache-Control": "public, s-maxage=3600" },
+    });
+  }
+
+  return json({ error: "Not Found" }, 404, "no-store");
+}
+
 function fetchHandler(req: Request): Promise<Response> {
   return (async () => {
     const url = new URL(req.url);
@@ -92,6 +155,12 @@ function fetchHandler(req: Request): Promise<Response> {
     // Only serve GET/HEAD for this static app
     if (req.method !== "GET" && req.method !== "HEAD") {
       return new Response("Method Not Allowed", { status: 405 });
+    }
+
+    // --- Local /api proxy (mirrors Vercel api/*.js, keys from .env) ---
+    // Keeps OWM_API_KEY + CESIUM_ION_TOKEN out of git/client source.
+    if (url.pathname.startsWith("/api/")) {
+      return handleApi(req, url);
     }
 
     let pathname = url.pathname;

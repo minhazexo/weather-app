@@ -1,4 +1,4 @@
-const CACHE_NAME = 'skylens-v3';
+const CACHE_NAME = 'skylens-v4';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

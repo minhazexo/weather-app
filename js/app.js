@@ -3,10 +3,10 @@
 (function() {
   'use strict';
 
-  // Configuration
+  // Configuration — no secrets here. OWM key lives server-side
+  // (OWM_API_KEY in .env / Vercel env) behind /api/weather + /api/tiles.
   const CONFIG = {
-    apiKey: 'c41ac4dcbbb1459860ff8f6d9d65096c',
-    apiBaseUrl: 'https://api.openweathermap.org/data/2.5',
+    apiBaseUrl: '/api',
     nominatimUrl: 'https://nominatim.openstreetmap.org',
     openMeteoUrl: 'https://api.open-meteo.com/v1/forecast',
     debounceDelay: 300,
@@ -539,7 +539,8 @@
       return;
     }
     try {
-      // Fetch OWM + Open-Meteo + AQI in parallel
+      // OWM via same-origin proxy (key hidden server-side) + Open-Meteo + NWS in parallel.
+      // Open-Meteo / Nominatim / NWS need no key, fetched directly.
       const omUrl = `${CONFIG.openMeteoUrl}?latitude=${latitude}&longitude=${longitude}` +
         '&current=uv_index,wind_gusts_10m,dew_point_2m,precipitation' +
         '&hourly=temperature_2m,weather_code,uv_index,wind_gusts_10m,dew_point_2m,precipitation_probability' +
@@ -548,16 +549,16 @@
       // NWS alerts for US only (OWM One Call requires paid subscription)
       const isUS = latitude >= 24 && latitude <= 50 && longitude >= -130 && longitude <= -60;
       const alertsUrl = isUS ? `https://api.weather.gov/alerts/active?point=${latitude},${longitude}` : null;
-      const [weatherRes, forecastRes, aqiRes, omRes, alertsRes] = await Promise.all([
-        fetch(`${CONFIG.apiBaseUrl}/weather?lat=${latitude}&lon=${longitude}&appid=${CONFIG.apiKey}&units=metric`),
-        fetch(`${CONFIG.apiBaseUrl}/forecast?lat=${latitude}&lon=${longitude}&appid=${CONFIG.apiKey}&units=metric`),
-        fetch(`https://api.openweathermap.org/data/2.5/air_pollution?lat=${latitude}&lon=${longitude}&appid=${CONFIG.apiKey}`).catch(() => null),
+      const [proxyRes, omRes, alertsRes] = await Promise.all([
+        fetch(`${CONFIG.apiBaseUrl}/weather?lat=${latitude}&lon=${longitude}`),
         fetch(omUrl).catch(() => null),
         alertsUrl ? fetch(alertsUrl).catch(() => null) : Promise.resolve(null)
       ]);
-      const weatherData = await weatherRes.json();
-      const forecastData = await forecastRes.json();
-      const aqiData = aqiRes ? await aqiRes.json().catch(() => null) : null;
+      if (!proxyRes.ok) {
+        const errBody = await proxyRes.json().catch(() => ({}));
+        throw new Error(errBody.error || `Weather proxy ${proxyRes.status} — set OWM_API_KEY in .env / Vercel env`);
+      }
+      const { current: weatherData, forecast: forecastData, aqi: aqiData } = await proxyRes.json();
       const omData = omRes ? await omRes.json().catch(() => null) : null;
       const alertsData = alertsRes ? await alertsRes.json().catch(() => null) : null;
       const weatherResult = formatWeatherData(weatherData, forecastData, aqiData, omData);
@@ -627,8 +628,8 @@
       });
     }
 
-    // Build enhanced hourly from Open-Meteo (next 24h)
-    let enhancedHourly = forecastData.list.slice(0, 8).map(item => ({
+    // Build enhanced hourly from Open-Meteo (next 24h), OWM list as fallback
+    let enhancedHourly = (forecastData?.list || []).slice(0, 8).map(item => ({
       dt: item.dt, temp: item.main.temp, weather: item.weather,
       pop: Math.round((item.pop || 0) * 100)
     }));
@@ -674,7 +675,7 @@
       aqi: aqiData ? aqiData.list?.[0]?.main?.aqi : null,
       aqiComponents: aqiData ? aqiData.list?.[0]?.components : null,
       hourly: enhancedHourly,
-      forecast: longForecast || processForecast(forecastData.list)
+      forecast: longForecast || (forecastData?.list ? processForecast(forecastData.list) : [])
     };
   }
 
